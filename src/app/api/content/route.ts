@@ -5,7 +5,6 @@ import { createContentSchema } from '@/lib/validators'
 export async function GET(request: NextRequest) {
   try {
     const supabase = createAdminClient()
-    // @ts-ignore - Supabase client typing
     const { data, error } = await supabase
       .from('content_pieces')
       .select('*')
@@ -34,7 +33,6 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient()
-    // @ts-ignore - Supabase client typing
     const { data, error } = await supabase
       .from('content_pieces')
       .insert({

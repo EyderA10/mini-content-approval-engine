@@ -19,7 +19,6 @@ export async function POST(
     }
 
     const supabase = createAdminClient()
-    // @ts-ignore - Supabase client typing
     const { data: existing } = await supabase
       .from('content_pieces')
       .select('id, status')
@@ -46,8 +45,7 @@ export async function POST(
       updated_at: new Date().toISOString(),
     }
 
-    // @ts-ignore - Supabase client typing
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('content_pieces')
       .update(updateData)
       .eq('share_token', token)

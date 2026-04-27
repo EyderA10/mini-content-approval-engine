@@ -2,13 +2,12 @@ import { createAdminClient } from '@/lib/supabase-admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     const { token } = await params
     const supabase = createAdminClient()
-    // @ts-ignore - Supabase client typing
     const { data, error } = await supabase
       .from('content_pieces')
       .select('*')
