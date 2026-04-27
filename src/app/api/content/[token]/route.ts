@@ -1,0 +1,26 @@
+import { createServerClient } from '@/lib/supabase-server'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  try {
+    const { token } = await params
+    const supabase = createServerClient()
+    // @ts-ignore - Supabase client typing
+    const { data, error } = await supabase
+      .from('content_pieces')
+      .select('*')
+      .eq('share_token', token)
+      .single()
+
+    if (error || !data) {
+      return NextResponse.json({ error: 'Content not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(data)
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
