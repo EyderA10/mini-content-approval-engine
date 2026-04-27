@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans, Geist } from "next/font/google";
-import "./globals.css";
+import "../globals.css";
 import { Header } from "@/components/Header";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: "Get client approvals on video content",
 };
 
-export default function RootLayout({
+export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -32,6 +32,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-gradient-subtle">
+        <Header />
         <main className="flex-1">{children}</main>
         <Toaster 
           position="top-right" 

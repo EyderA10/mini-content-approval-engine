@@ -8,6 +8,9 @@ import { createClient } from '@/lib/supabase'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+const supabase = createClient()
+const POLL_INTERVAL = 3000
+
 type ContentPiece = {
   id: string
   title: string
@@ -25,15 +28,30 @@ export default function ClientPage({ params }: Props) {
   const [isLoading, setIsLoading] = useState(true)
   const [token, setToken] = useState<string>('')
   const isMountedRef = useRef(true)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const prevStatusRef = useRef<string>('pending')
 
-  const fetchContent = async (token: string) => {
+  const fetchContent = async (t: string) => {
     try {
-      const response = await axios.get(`/api/content/${token}`)
+      const response = await axios.get(`/api/content/${t}`)
       if (isMountedRef.current && response.status === 200) {
-        setContent(response.data)
+        const newContent = response.data
+        setContent(newContent)
+        
+        if (prevStatusRef.current !== 'pending' && newContent.status === 'pending') {
+        } else if (prevStatusRef.current === 'pending' && newContent.status !== 'pending') {
+          console.log('[Client] Status changed via polling:', newContent.status)
+          if (newContent.status === 'approved') {
+            toast.success('Content approved!')
+          } else if (newContent.status === 'rejected') {
+            toast.success('Feedback submitted')
+          }
+        }
+        
+        prevStatusRef.current = newContent.status
       }
     } catch (error) {
-      console.error('Failed to fetch content:', error)
+      console.error('[Client] Failed to fetch content:', error)
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false)
@@ -41,6 +59,13 @@ export default function ClientPage({ params }: Props) {
     }
   }
   
+  const handleActionComplete = () => {
+    console.log('[Client] Action completed, refetching...')
+    if (token) {
+      fetchContent(token)
+    }
+  }
+
   useEffect(() => {
     params.then((p) => {
       setToken(p.token)
@@ -49,41 +74,66 @@ export default function ClientPage({ params }: Props) {
   }, [params])
 
   useEffect(() => {
-    if (!token) return
+    if (!token || !isMountedRef.current) return
 
-    const supabase = createClient()
+    console.log('[Client] Setting up realtime for token:', token)
 
     const channel = supabase
-      .channel(`content-${token}`)
+      .channel('content-updates')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'content_pieces',
-          filter: `share_token=eq.${token}`,
-        },
+        { event: 'UPDATE', schema: 'public', table: 'content_pieces', filter: `share_token=eq.${token}` },
         (payload) => {
           if (!isMountedRef.current) return
-
-          console.log('Realtime update received:', payload)
-
-          setContent((prev) => {
-            if (prev && payload.new) {
-              return payload.new as ContentPiece
+          
+          console.log('[Client] UPDATE received:', payload)
+          console.log('[Client] New status:', payload.new?.status)
+          
+          if (payload.new) {
+            const updatedContent = payload.new as ContentPiece
+            setContent(updatedContent)
+            prevStatusRef.current = updatedContent.status
+            
+            if (updatedContent.status === 'approved') {
+              toast.success('Content approved!')
+            } else if (updatedContent.status === 'rejected') {
+              toast.success('Feedback submitted')
             }
-            return prev
-          })
-
-          toast.success('Content updated!')
+          }
         }
       )
       .subscribe((status) => {
-        console.log('Subscription status:', status)
+        console.log('[Client] Subscription status:', status)
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('[Client] Realtime connected - polling disabled')
+        } else if (status === 'CLOSED' && !pollIntervalRef.current) {
+          console.log('[Client] Realtime unavailable - starting polling')
+          
+          pollIntervalRef.current = setInterval(() => {
+            if (document.visibilityState === 'visible' && token) {
+              fetchContent(token)
+            }
+          }, POLL_INTERVAL)
+        }
       })
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && token) {
+        console.log('[Client] Tab visible - refetching')
+        fetchContent(token)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
-      supabase.removeChannel(channel)
+      console.log('[Client] Cleanup - unsubscribing from channel')
+      channel.unsubscribe()
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [token])
 
@@ -120,7 +170,7 @@ export default function ClientPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background-warm to-background">
+    <div className="min-h-screen bg-linear-to-b from-background via-background-warm to-background">
       <div className="container mx-auto max-w-4xl px-6 py-12 lg:px-8">
         {/* Header */}
         <div className="mb-8 opacity-0 animate-slide-up" style={{ animationFillMode: 'forwards' }}>
@@ -149,7 +199,7 @@ export default function ClientPage({ params }: Props) {
             <h2 className="font-serif text-2xl font-medium text-foreground mb-6">
               Your Decision
             </h2>
-            <ActionPanel token={token} currentStatus={content.status} />
+            <ActionPanel token={token} currentStatus={content.status} onActionComplete={handleActionComplete} />
           </div>
         </div>
       </div>

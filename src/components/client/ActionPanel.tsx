@@ -35,9 +35,10 @@ function extractErrorMessage(error: unknown): string {
 type ActionPanelProps = {
   token: string
   currentStatus: 'pending' | 'approved' | 'rejected'
+  onActionComplete?: () => void
 }
 
-export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
+export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPanelProps) {
   const [showFeedback, setShowFeedback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -54,6 +55,7 @@ export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
       })
 
       toast.success('Content approved successfully!')
+      onActionComplete?.()
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         toast.error(extractErrorMessage(err.response.data.error) || 'Failed to approve')
@@ -81,6 +83,7 @@ export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
       })
 
       toast.success('Feedback submitted')
+      onActionComplete?.()
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         toast.error(extractErrorMessage(err.response.data.error) || 'Failed to reject')

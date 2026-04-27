@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
 import { createClient } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from './StatusBadge'
 import { Copy, ExternalLink, Loader2, Play, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
+
+const supabase = createClient()
+const POLL_INTERVAL = 3000
 
 type ContentPiece = {
   id: string
@@ -22,6 +25,8 @@ type ContentPiece = {
 export function ContentList() {
   const [items, setItems] = useState<ContentPiece[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const lastUpdateRef = useRef<number>(0)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -30,10 +35,23 @@ export function ContentList() {
       try {
         const response = await axios.get('/api/content')
         if (isActive && response.status === 200) {
-          setItems(response.data)
+          const newItems = response.data
+          
+          setItems(newItems)
+          
+          if (lastUpdateRef.current > 0) {
+            const addedItem = newItems.find((n: ContentPiece) => 
+              !items.some((o) => o.id === n.id)
+            )
+            if (addedItem) {
+              toast.success(`New content: ${addedItem.title}`)
+            }
+          }
+          
+          lastUpdateRef.current = Date.now()
         }
       } catch (error) {
-        console.error('Failed to fetch content:', error)
+        console.error('[Dashboard] Failed to fetch content:', error)
       } finally {
         if (isActive) {
           setIsLoading(false)
@@ -41,50 +59,73 @@ export function ContentList() {
       }
     }
 
+    const handleRealtimeEvent = (payload: { eventType: string; new?: ContentPiece; old?: ContentPiece }) => {
+      console.log('[Dashboard] Realtime event:', payload.eventType, payload)
+      
+      if (payload.eventType === 'INSERT' && payload.new) {
+        setItems((prev) => {
+          if (prev.some((item) => item.id === payload.new!.id)) return prev
+          return [payload.new!, ...prev]
+        })
+        toast.success(`New content: ${payload.new.title}`)
+      } else if (payload.eventType === 'UPDATE' && payload.new) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === payload.new!.id ? payload.new! : item
+          )
+        )
+        toast.success(`Updated: ${payload.new.title}`)
+      } else if (payload.eventType === 'DELETE' && payload.old) {
+        setItems((prev) =>
+          prev.filter((item) => item.id !== payload.old!.id)
+        )
+        toast.info(`Removed: ${payload.old.id}`)
+      }
+      
+      lastUpdateRef.current = Date.now()
+    }
+
     fetchContent()
 
-    const supabase = createClient()
-
     const channel = supabase
-      .channel('content_pieces')
+      .channel('content-updates')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'content_pieces' },
-        async (payload) => {
-          if (!isActive) return
-          console.info('Realtime event received', {
-            eventType: payload.eventType,
-            schema: payload.schema,
-            table: payload.table,
-          })
-          await fetchContent()
-        }
+        handleRealtimeEvent as never
       )
       .subscribe((status) => {
-        switch (status) {
-          case 'SUBSCRIBED':
-            console.info('Realtime channel subscribed: content_pieces')
-            break
-          case 'CHANNEL_ERROR':
-            console.error('Realtime channel error: content_pieces')
-            toast.error('Realtime disconnected. Refresh the page to resync.')
-            break
-          case 'TIMED_OUT':
-            console.error('Realtime channel timed out: content_pieces')
-            toast.error('Realtime timed out. Retrying may be required.')
-            break
-          case 'CLOSED':
-            console.info('Realtime channel closed: content_pieces')
-            break
-          default:
-            break
+        console.log('[Dashboard] Subscription status:', status)
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('[Dashboard] Realtime connected - polling disabled')
+        } else if (status === 'CLOSED' && !pollIntervalRef.current) {
+          console.log('[Dashboard] Realtime unavailable - starting polling')
+          
+          pollIntervalRef.current = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+              fetchContent()
+            }
+          }, POLL_INTERVAL)
         }
       })
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Dashboard] Tab visible - refetching')
+        fetchContent()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       isActive = false
-      supabase.removeChannel(channel)
+      channel.unsubscribe()
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
 
