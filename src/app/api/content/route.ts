@@ -1,10 +1,10 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { createContentSchema } from '@/lib/validators'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     // @ts-ignore - Supabase client typing
     const { data, error } = await supabase
       .from('content_pieces')
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     // @ts-ignore - Supabase client typing
     const { data, error } = await supabase
       .from('content_pieces')

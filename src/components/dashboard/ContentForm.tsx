@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createContentSchema, CreateContentInput } from '@/lib/validators'
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { Loader2, Plus, Film } from 'lucide-react'
 
 export function ContentForm({
@@ -59,17 +62,15 @@ export function ContentForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-2">
-        <label 
+        <Label 
           htmlFor="title" 
-          className="block text-sm font-medium text-foreground-muted"
         >
           Video Title
-        </label>
-        <input
+        </Label>
+        <Input
           {...register('title')}
           id="title"
           placeholder="Enter a title for your content"
-          className="input"
         />
         {errors.title && (
           <p className="text-sm text-error">{errors.title.message}</p>
@@ -77,21 +78,20 @@ export function ContentForm({
       </div>
 
       <div className="space-y-2">
-        <label 
+        <Label 
           htmlFor="videoUrl" 
-          className="block text-sm font-medium text-foreground-muted"
         >
           Video URL
-        </label>
+        </Label>
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
             <Film className="h-4 w-4 text-foreground-muted" />
           </div>
-          <input
+          <Input
             {...register('videoUrl')}
             id="videoUrl"
             placeholder="YouTube, Vimeo, or direct MP4 link"
-            className="input pl-11"
+            className="pl-11"
           />
         </div>
         {errors.videoUrl && (
@@ -105,10 +105,10 @@ export function ContentForm({
         </div>
       )}
 
-      <button
+      <Button
         type="submit"
         disabled={isLoading}
-        className="btn btn-primary w-full shadow-md shadow-accent/15 hover:shadow-lg hover:shadow-accent/25"
+        className="w-full"
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -118,7 +118,7 @@ export function ContentForm({
             Create Content Piece
           </>
         )}
-      </button>
+      </Button>
     </form>
   )
 }

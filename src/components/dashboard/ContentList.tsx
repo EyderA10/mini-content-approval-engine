@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { StatusBadge } from './StatusBadge'
 import { Copy, ExternalLink, Loader2, Play, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
@@ -91,9 +93,9 @@ export function ContentList() {
   return (
     <div className="space-y-3">
       {items.map((item, index) => (
-        <div
+        <Card
           key={item.id}
-          className="group card relative overflow-hidden p-4 opacity-0 animate-slide-up"
+          className="relative overflow-hidden p-4 opacity-0 animate-slide-up"
           style={{ animationDelay: `${index * 0.05}s`, animationFillMode: 'forwards' }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
@@ -131,25 +133,27 @@ export function ContentList() {
             </div>
             
             <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => copyLink(item.share_token)}
-                className="btn-ghost rounded-md p-2"
                 title="Copy link"
               >
                 <Copy className="h-4 w-4" />
-              </button>
-              <a
-                href={`/approve/${item.share_token}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-ghost rounded-md p-2"
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  window.open(`/approve/${item.share_token}`, '_blank')
+                }}
                 title="Open review page"
               >
                 <ExternalLink className="h-4 w-4" />
-              </a>
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   )

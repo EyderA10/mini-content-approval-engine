@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { token } = await params
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     // @ts-ignore - Supabase client typing
     const { data, error } = await supabase
       .from('content_pieces')

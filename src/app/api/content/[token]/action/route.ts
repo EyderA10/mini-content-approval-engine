@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { actionSchema } from '@/lib/validators'
 
@@ -18,7 +18,7 @@ export async function POST(
       )
     }
 
-    const supabase = createServerClient()
+    const supabase = createAdminClient()
     // @ts-ignore - Supabase client typing
     const { data: existing } = await supabase
       .from('content_pieces')
