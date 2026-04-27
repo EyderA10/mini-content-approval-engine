@@ -1,7 +1,27 @@
+'use client'
+
+import { useState } from 'react'
 import { ContentForm } from '@/components/dashboard/ContentForm'
 import { ContentList } from '@/components/dashboard/ContentList'
+import { CreateContentInput } from '@/lib/validators'
+
+type ContentPiece = {
+  id: string
+  title: string
+  video_url: string
+  status: 'pending' | 'approved' | 'rejected'
+  share_token: string
+  client_feedback: string | null
+  created_at: string
+}
 
 export default function DashboardPage() {
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handleContentCreated = (data: CreateContentInput & { id: string; shareToken: string }) => {
+    setRefreshKey((k) => k + 1)
+  }
+
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-linear-to-b from-background via-background-warm to-background">
       <div className="container mx-auto max-w-6xl px-6 py-12 lg:px-8">
@@ -28,7 +48,7 @@ export default function DashboardPage() {
                   Add a video for client review
                 </p>
               </div>
-              <ContentForm />
+              <ContentForm onSuccess={handleContentCreated} />
             </div>
           </div>
 
@@ -43,7 +63,7 @@ export default function DashboardPage() {
                   Live
                 </span>
               </div>
-              <ContentList />
+              <ContentList key={refreshKey} />
             </div>
           </div>
         </div>

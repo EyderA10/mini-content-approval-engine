@@ -2,8 +2,11 @@
 
 import { VideoPlayer } from '@/components/client/VideoPlayer'
 import { ActionPanel } from '@/components/client/ActionPanel'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import axios from 'axios'
+import { createClient } from '@/lib/supabase'
 import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 type ContentPiece = {
   id: string
@@ -21,7 +24,23 @@ export default function ClientPage({ params }: Props) {
   const [content, setContent] = useState<ContentPiece | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [token, setToken] = useState<string>('')
+  const isMountedRef = useRef(true)
 
+  const fetchContent = async (token: string) => {
+    try {
+      const response = await axios.get(`/api/content/${token}`)
+      if (isMountedRef.current && response.status === 200) {
+        setContent(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch content:', error)
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false)
+      }
+    }
+  }
+  
   useEffect(() => {
     params.then((p) => {
       setToken(p.token)
@@ -29,19 +48,49 @@ export default function ClientPage({ params }: Props) {
     })
   }, [params])
 
-  const fetchContent = async (token: string) => {
-    try {
-      const response = await fetch(`/api/content/${token}`)
-      const data = await response.json()
-      if (response.ok) {
-        setContent(data)
-      }
-    } catch (error) {
-      console.error('Failed to fetch content:', error)
-    } finally {
-      setIsLoading(false)
+  useEffect(() => {
+    if (!token) return
+
+    const supabase = createClient()
+
+    const channel = supabase
+      .channel(`content-${token}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'content_pieces',
+          filter: `share_token=eq.${token}`,
+        },
+        (payload) => {
+          if (!isMountedRef.current) return
+
+          console.log('Realtime update received:', payload)
+
+          setContent((prev) => {
+            if (prev && payload.new) {
+              return payload.new as ContentPiece
+            }
+            return prev
+          })
+
+          toast.success('Content updated!')
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status)
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   if (isLoading) {
     return (

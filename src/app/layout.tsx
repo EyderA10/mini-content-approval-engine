@@ -36,12 +36,15 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Toaster 
           position="top-right" 
+          richColors
+          closeButton
           toastOptions={{
             style: {
               background: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
               fontFamily: 'var(--font-sans)',
+              color: 'var(--foreground)',
             }
           }}
         />

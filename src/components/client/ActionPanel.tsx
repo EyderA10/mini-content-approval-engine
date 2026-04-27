@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import axios from 'axios'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,13 +10,34 @@ import { Card } from "@/components/ui/card"
 import { Loader2, Check, X, User, Mail, MessageSquare, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === 'string') return error
+  if (error === undefined) return 'An error occurred'
+  if (typeof error !== 'object') return 'An error occurred'
+  
+  const err = error as Record<string, unknown>
+  if (err.clientEmail && Array.isArray(err.clientEmail)) {
+    return (err.clientEmail[0] as string) || 'Invalid email'
+  }
+  if (err.clientName && Array.isArray(err.clientName)) {
+    return (err.clientName[0] as string) || 'Invalid name'
+  }
+  if (err.feedback && Array.isArray(err.feedback)) {
+    return (err.feedback[0] as string) || 'Feedback is required'
+  }
+  if (err.action && Array.isArray(err.action)) {
+    return (err.action[0] as string) || 'Invalid action'
+  }
+  
+  return 'An error occurred'
+}
+
 type ActionPanelProps = {
   token: string
   currentStatus: 'pending' | 'approved' | 'rejected'
 }
 
 export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
-  const router = useRouter()
   const [showFeedback, setShowFeedback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -26,27 +47,19 @@ export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
   const handleApprove = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/content/${token}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'approve',
-          clientName: clientName || undefined,
-          clientEmail: clientEmail || undefined,
-        }),
+      await axios.post(`/api/content/${token}/action`, {
+        action: 'approve',
+        clientName: clientName || undefined,
+        clientEmail: clientEmail || undefined,
       })
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        toast.error(result.error || 'Failed to approve')
-        return
-      }
-
       toast.success('Content approved successfully!')
-      router.refresh()
-    } catch {
-      toast.error('An unexpected error occurred')
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data?.error) {
+        toast.error(extractErrorMessage(err.response.data.error) || 'Failed to approve')
+      } else {
+        toast.error('An unexpected error occurred')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -60,28 +73,20 @@ export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/content/${token}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'reject',
-          feedback,
-          clientName: clientName || undefined,
-          clientEmail: clientEmail || undefined,
-        }),
+      await axios.post(`/api/content/${token}/action`, {
+        action: 'reject',
+        feedback,
+        clientName: clientName || undefined,
+        clientEmail: clientEmail || undefined,
       })
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        toast.error(result.error || 'Failed to reject')
-        return
-      }
-
       toast.success('Feedback submitted')
-      router.refresh()
-    } catch {
-      toast.error('An unexpected error occurred')
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data?.error) {
+        toast.error(extractErrorMessage(err.response.data.error) || 'Failed to reject')
+      } else {
+        toast.error('An unexpected error occurred')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -165,8 +170,7 @@ export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
           <Button
             onClick={() => setShowFeedback(true)}
             disabled={isLoading}
-            variant="destructive"
-            className="flex flex-1 items-center justify-center gap-3 rounded-xl px-6 py-4 text-lg font-semibold shadow-lg shadow-error/25 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+            className="flex flex-1 items-center justify-center gap-3 rounded-xl bg-error-subtle px-6 py-4 text-lg font-semibold text-error border border-error/20 shadow-lg shadow-error/10 transition-all hover:bg-error/10 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
           >
             <X className="h-5 w-5" />
             Request Changes
@@ -191,8 +195,7 @@ export function ActionPanel({ token, currentStatus }: ActionPanelProps) {
             <Button
               onClick={handleReject}
               disabled={isLoading || !feedback.trim()}
-              variant="destructive"
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg px-5 py-3 shadow-lg shadow-error/20 transition-all hover:shadow-error/30 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg px-5 py-3 bg-error-subtle text-error border border-error/20 shadow-lg shadow-error/10 transition-all hover:bg-error/20 disabled:opacity-50"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

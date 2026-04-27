@@ -15,7 +15,37 @@ CREATE TABLE IF NOT EXISTS content_pieces (
 );
 
 -- Enable realtime for this table
-ALTER PUBLICATION supabase_realtime ADD TABLE content_pieces;
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE content_pieces;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Ensure UPDATE/DELETE events include full record payloads
+ALTER TABLE content_pieces REPLICA IDENTITY FULL;
+
+-- Allow browser anon role to read rows for dashboard + realtime
+GRANT SELECT ON TABLE content_pieces TO anon;
+
+-- If RLS is enabled, this policy allows anon read access.
+-- Keep disabled if you intentionally require auth to read.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'content_pieces'
+      AND policyname = 'anon_select_content_pieces'
+  ) THEN
+    CREATE POLICY anon_select_content_pieces
+      ON public.content_pieces
+      FOR SELECT
+      TO anon
+      USING (true);
+  END IF;
+END $$;
 
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_content_pieces_share_token ON content_pieces(share_token);

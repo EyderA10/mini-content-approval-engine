@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import axios from 'axios'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createContentSchema, CreateContentInput } from '@/lib/validators'
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Loader2, Plus, Film } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function ContentForm({
   onSuccess,
@@ -31,29 +33,24 @@ export function ContentForm({
     setError(null)
 
     try {
-      const response = await fetch('/api/content', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        setError(result.error?.videoUrl?.[0] || result.error?.title?.[0] || 'Failed to create content')
-        return
-      }
+      const response = await axios.post('/api/content', data)
 
       reset()
+      toast.success('Content piece created successfully')
       if (onSuccess) {
         onSuccess({
           ...data,
-          id: result.id,
-          shareToken: result.share_token,
+          id: response.data.id,
+          shareToken: response.data.share_token,
         })
       }
-    } catch {
-      setError('An unexpected error occurred')
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data?.error) {
+        const errorData = err.response.data.error
+        setError(errorData.videoUrl?.[0] || errorData.title?.[0] || 'Failed to create content')
+      } else {
+        setError('An unexpected error occurred')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -84,7 +81,7 @@ export function ContentForm({
           Video URL
         </Label>
         <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <Film className="h-4 w-4 text-foreground-muted" />
           </div>
           <Input
