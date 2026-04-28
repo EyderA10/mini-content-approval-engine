@@ -6,7 +6,7 @@ import { videoUrlSchema } from './video'
  * @see {CreateContentInput}
  */
 export const createContentSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
+  title: z.string().min(1, 'Title is required').max(200, 'Title too long').trim(),
   videoUrl: videoUrlSchema,
 })
 

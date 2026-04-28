@@ -14,10 +14,11 @@ export function extractErrorMessage(error: unknown): string {
   // Handle undefined
   if (error === undefined) return 'An error occurred'
 
-  // Handle non-object errors
-  if (typeof error !== 'object') return 'An error occurred'
+    // Handle non-object errors (including null)
+    if (error === null) return 'An error occurred'
+    if (typeof error !== 'object') return 'An error occurred'
 
-  const err = error as ApiErrorResponse
+    const err = error as ApiErrorResponse
 
   // Handle axios error with response data
   if (axios.isAxiosError(err) && err.response?.data) {

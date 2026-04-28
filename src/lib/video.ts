@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
 const VIMEO_REGEX = /(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/
-const MP4_REGEX = /\.mp4$/i
+const MP4_REGEX = /\.mp4(\?|#|$)/i
 
 /** Supported video platforms. */
 export type VideoType = 'youtube' | 'vimeo' | 'mp4'
