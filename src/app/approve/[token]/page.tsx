@@ -9,6 +9,7 @@ import { ContentPiece } from '@/lib/validators'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { POLL_INTERVAL } from '@/lib/constants'
+import { logger } from '@/lib/logger'
 
 const supabase = createClient()
 
@@ -32,7 +33,7 @@ export default function ClientPage({ params }: Props) {
         setContent(newContent)
         
         if (prevStatusRef.current === 'pending' && newContent.status !== 'pending') {
-          console.log('[Client] Status changed via polling:', newContent.status)
+          logger.log('[Client] Status changed via polling:', newContent.status)
           if (newContent.status === 'approved') {
             toast.success('Content approved!')
           } else if (newContent.status === 'rejected') {
@@ -43,7 +44,7 @@ export default function ClientPage({ params }: Props) {
         prevStatusRef.current = newContent.status
       }
     } catch (error) {
-      console.error('[Client] Failed to fetch content:', error)
+      logger.error('[Client] Failed to fetch content:', error)
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false)
@@ -52,7 +53,7 @@ export default function ClientPage({ params }: Props) {
   }
   
   const handleActionComplete = () => {
-    console.log('[Client] Action completed, refetching...')
+    logger.log('[Client] Action completed, refetching...')
     if (token) {
       fetchContent(token)
     }
@@ -68,7 +69,7 @@ export default function ClientPage({ params }: Props) {
   useEffect(() => {
     if (!token || !isMountedRef.current) return
 
-    console.log('[Client] Setting up realtime for token:', token)
+    logger.log('[Client] Setting up realtime for token:', token)
 
     const channel = supabase
       .channel('content-updates')
@@ -78,8 +79,8 @@ export default function ClientPage({ params }: Props) {
         (payload) => {
           if (!isMountedRef.current) return
           
-          console.log('[Client] UPDATE received:', payload)
-          console.log('[Client] New status:', payload.new?.status)
+          logger.log('[Client] UPDATE received:', payload)
+          logger.log('[Client] New status:', payload.new?.status)
           
           if (payload.new) {
             const updatedContent = payload.new as ContentPiece
@@ -95,12 +96,12 @@ export default function ClientPage({ params }: Props) {
         }
       )
       .subscribe((status) => {
-        console.log('[Client] Subscription status:', status)
+        logger.log('[Client] Subscription status:', status)
         
         if (status === 'SUBSCRIBED') {
-          console.log('[Client] Realtime connected - polling disabled')
+          logger.log('[Client] Realtime connected - polling disabled')
         } else if (status === 'CLOSED' && !pollIntervalRef.current) {
-          console.log('[Client] Realtime unavailable - starting polling')
+          logger.log('[Client] Realtime unavailable - starting polling')
           
           pollIntervalRef.current = setInterval(() => {
             if (document.visibilityState === 'visible' && token) {
@@ -112,14 +113,14 @@ export default function ClientPage({ params }: Props) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && token) {
-        console.log('[Client] Tab visible - refetching')
+        logger.log('[Client] Tab visible - refetching')
         fetchContent(token)
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      console.log('[Client] Cleanup - unsubscribing from channel')
+      logger.log('[Client] Cleanup - unsubscribing from channel')
       channel.unsubscribe()
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current)

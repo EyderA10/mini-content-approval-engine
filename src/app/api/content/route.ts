@@ -1,8 +1,23 @@
 import { createAdminClient } from '@/lib/supabase-admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { createContentSchema } from '@/lib/validators'
+import { rateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit'
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  // Apply rate limiting for reads
+  const ip = getClientIp(request)
+  const rateLimitResult = rateLimit(ip, RATE_LIMITS.READ)
+
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers,
+      }
+    )
+  }
+
   try {
     const supabase = createAdminClient()
     const { data, error } = await supabase
@@ -11,17 +26,36 @@ export async function GET(_request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[API] Error:', error)
+      return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
     }
 
-    return NextResponse.json(data)
-  } catch (error) {
-    console.error('[API] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const response = NextResponse.json(data)
+    Object.entries(rateLimitResult.headers).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+    return response
+  } catch (_error) {
+    console.error('[API] Error:')
+    return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting for content creation (stricter)
+  const ip = getClientIp(request)
+  const rateLimitResult = rateLimit(ip, RATE_LIMITS.CREATE)
+
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      {
+        status: 429,
+        headers: rateLimitResult.headers,
+      }
+    )
+  }
+
   try {
     const body = await request.json()
     const result = createContentSchema.safeParse(body)
@@ -44,12 +78,17 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[API] Error creating content:', error)
+      return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
     }
 
-    return NextResponse.json(data, { status: 201 })
-  } catch (error) {
-    console.error('[API] Error creating content:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const response = NextResponse.json(data, { status: 201 })
+    Object.entries(rateLimitResult.headers).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+    return response
+  } catch (_error) {
+    console.error('[API] Error creating content:')
+    return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
   }
 }

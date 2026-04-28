@@ -69,7 +69,14 @@ export function getEmbedUrl(url: string): string | null {
     case 'vimeo':
       return `https://player.vimeo.com/video/${id}`
     case 'mp4':
-      return url
+      // Validate protocol for MP4 URLs to prevent javascript: or other dangerous protocols
+      try {
+        const parsed = new URL(url)
+        if (!['http:', 'https:'].includes(parsed.protocol)) return null
+        return url
+      } catch {
+        return null
+      }
   }
 }
 

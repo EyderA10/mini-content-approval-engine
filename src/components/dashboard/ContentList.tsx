@@ -10,6 +10,7 @@ import { StatusBadge } from './StatusBadge'
 import { Copy, ExternalLink, Loader2, Play, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { POLL_INTERVAL, REALTIME_CHANNEL_NAME } from '@/lib/constants'
+import { logger } from '@/lib/logger'
 
 const supabase = createClient()
 
@@ -52,7 +53,7 @@ export function ContentList() {
           lastUpdateRef.current = Date.now()
         }
       } catch (error) {
-        console.error('[Dashboard] Failed to fetch content:', error)
+        logger.error('[Dashboard] Failed to fetch content:', error)
       } finally {
         if (isActive) {
           setIsLoading(false)
@@ -61,7 +62,7 @@ export function ContentList() {
     }
 
     const handleRealtimeEvent = (payload: { eventType: string; new?: ContentPiece; old?: ContentPiece }) => {
-      console.log('[Dashboard] Realtime event:', payload.eventType, payload)
+      logger.log('[Dashboard] Realtime event:', payload.eventType, payload)
       
       if (payload.eventType === 'INSERT' && payload.new) {
         setItems((prev) => {
@@ -96,12 +97,12 @@ export function ContentList() {
         handleRealtimeEvent as never
       )
       .subscribe((status) => {
-        console.log('[Dashboard] Subscription status:', status)
+        logger.log('[Dashboard] Subscription status:', status)
         
         if (status === 'SUBSCRIBED') {
-          console.log('[Dashboard] Realtime connected - polling disabled')
+          logger.log('[Dashboard] Realtime connected - polling disabled')
         } else if (status === 'CLOSED' && !pollIntervalRef.current) {
-          console.log('[Dashboard] Realtime unavailable - starting polling')
+          logger.log('[Dashboard] Realtime unavailable - starting polling')
           
           pollIntervalRef.current = setInterval(() => {
             if (document.visibilityState === 'visible') {
@@ -113,7 +114,7 @@ export function ContentList() {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[Dashboard] Tab visible - refetching')
+        logger.log('[Dashboard] Tab visible - refetching')
         fetchContent()
       }
     }

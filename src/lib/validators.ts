@@ -18,9 +18,9 @@ export const createContentSchema = z.object({
 export const actionSchema = z
   .object({
     action: z.enum(['approve', 'reject']),
-    clientName: z.string().optional(),
-    clientEmail: z.string().email('Invalid email').optional().or(z.literal('')),
-    feedback: z.string().optional(),
+    clientName: z.string().max(100, 'Name must be under 100 characters').optional(),
+    clientEmail: z.email('Invalid email').max(100, 'Email must be under 100 characters').optional().or(z.literal('')),
+    feedback: z.string().max(2000, 'Feedback must be under 2000 characters').optional(),
   })
   .refine(
     (data) => {
