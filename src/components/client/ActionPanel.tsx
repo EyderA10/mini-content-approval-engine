@@ -141,17 +141,17 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
       </div>
 
       {!showFeedback ? (
-        <div className="flex gap-4 pt-2">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2">
           <Button
             onClick={handleApprove}
             disabled={isLoading}
-            className="flex flex-1 items-center justify-center gap-3 rounded-xl bg-success px-6 py-4 text-lg font-semibold text-white shadow-lg shadow-success/25 transition-all hover:bg-success/90 hover:shadow-xl hover:shadow-success/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+            className="w-full sm:flex-1 flex items-center justify-center gap-2 sm:gap-3 rounded-xl bg-success px-4 py-3 sm:px-6 sm:py-4 text-base sm:text-lg font-semibold text-white shadow-lg shadow-success/25 transition-all hover:bg-success/90 hover:shadow-xl hover:shadow-success/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
           >
             {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
             ) : (
               <>
-                <Check className="h-5 w-5" />
+                <Check className="h-4 w-4 sm:h-5 sm:w-5" />
                 Approve
               </>
             )}
@@ -159,14 +159,14 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
           <Button
             onClick={() => setShowFeedback(true)}
             disabled={isLoading}
-            className="flex flex-1 items-center justify-center gap-3 rounded-xl bg-error-subtle px-6 py-4 text-lg font-semibold text-error border border-error/20 shadow-lg shadow-error/10 transition-all hover:bg-error/10 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+            className="w-full sm:flex-1 flex items-center justify-center gap-2 rounded-xl bg-error-subtle px-4 py-3 sm:px-6 sm:py-4 text-base sm:text-lg font-semibold text-error border border-error/20 shadow-lg shadow-error/10 transition-all hover:bg-error/10 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 sm:h-5 sm:w-5" />
             Request Changes
           </Button>
         </div>
       ) : (
-        <div className="space-y-4 rounded-xl border border-error/20 bg-error-subtle/30 p-6">
+        <div className="space-y-4 rounded-xl border border-error/20 bg-error-subtle/30 p-4 sm:p-6">
           <div className="space-y-2">
             <Label className="flex items-center gap-2 text-error">
               <MessageSquare className="h-4 w-4" />
@@ -180,11 +180,11 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
               className="resize-none border-error/30 focus:border-error focus:ring-error/20"
             />
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handleReject}
               disabled={isLoading || !feedback.trim()}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg px-5 py-3 bg-error-subtle text-error border border-error/20 shadow-lg shadow-error/10 transition-all hover:bg-error/20 disabled:opacity-50"
+              className="w-full sm:flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-3 sm:px-5 sm:py-3 bg-error-subtle text-error border border-error/20 shadow-lg shadow-error/10 transition-all hover:bg-error/20 disabled:opacity-50"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -199,7 +199,7 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
               onClick={() => setShowFeedback(false)}
               disabled={isLoading}
               variant="secondary"
-              className="px-5 py-3"
+              className="w-full sm:w-auto px-4 py-3 sm:px-5 sm:py-3"
             >
               Cancel
             </Button>

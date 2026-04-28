@@ -107,19 +107,21 @@ export function ContentForm({
         </div>
       )}
 
-      <Button
+<Button
         type="submit"
         disabled={isLoading}
-        className="w-full"
+        className="w-full bg-accent hover:bg-accent/90 text-white font-medium px-6 py-3 transition-colors"
       >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <>
-            <Plus className="h-4 w-4" />
-            Create Content Piece
-          </>
-        )}
+        <span className="flex items-center justify-center gap-2">
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              <Plus className="h-4 w-4" />
+              <span>Create Content Piece</span>
+            </>
+          )}
+        </span>
       </Button>
     </form>
   )
