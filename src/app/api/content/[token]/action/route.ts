@@ -64,6 +64,7 @@ export async function POST(
           : 'Content rejected with feedback',
     })
   } catch (error) {
+    console.error('[API] Error processing action:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

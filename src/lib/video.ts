@@ -4,8 +4,14 @@ const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA
 const VIMEO_REGEX = /(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/
 const MP4_REGEX = /\.mp4$/i
 
+/** Supported video platforms. */
 export type VideoType = 'youtube' | 'vimeo' | 'mp4'
 
+/**
+ * Detects the video platform from a URL.
+ * @param url - The video URL to check
+ * @returns The video type or null if unsupported
+ */
 export function getVideoType(url: string): VideoType | null {
   if (YOUTUBE_REGEX.test(url)) return 'youtube'
   if (VIMEO_REGEX.test(url)) return 'vimeo'
@@ -13,10 +19,21 @@ export function getVideoType(url: string): VideoType | null {
   return null
 }
 
+/**
+ * Validates if a URL is a supported video platform.
+ * @param url - The URL to validate
+ * @returns True if the URL is a valid YouTube, Vimeo, or MP4 link
+ */
 export function isValidVideoUrl(url: string): boolean {
   return getVideoType(url) !== null
 }
 
+/**
+ * Extracts the video ID from a URL based on its type.
+ * @param url - The original video URL
+ * @param type - The detected video type
+ * @returns The video ID or the full URL for MP4
+ */
 export function getVideoId(url: string, type: VideoType): string | null {
   switch (type) {
     case 'youtube': {
@@ -34,6 +51,11 @@ export function getVideoId(url: string, type: VideoType): string | null {
   }
 }
 
+/**
+ * Generates an embeddable URL for the video player.
+ * @param url - The original video URL
+ * @returns Embed URL for YouTube/Vimeo, or original URL for MP4
+ */
 export function getEmbedUrl(url: string): string | null {
   const type = getVideoType(url)
   if (!type) return null
@@ -51,6 +73,7 @@ export function getEmbedUrl(url: string): string | null {
   }
 }
 
+/** Zod schema for validating video URLs (YouTube, Vimeo, or direct MP4). */
 export const videoUrlSchema = z.string().refine(isValidVideoUrl, {
   message: 'Invalid video URL. Use YouTube, Vimeo, or direct MP4 link.',
 })

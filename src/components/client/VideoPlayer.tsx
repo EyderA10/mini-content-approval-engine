@@ -1,9 +1,14 @@
 import { getEmbedUrl, getVideoType } from '@/lib/video'
 
 type VideoPlayerProps = {
+  /** The video URL to embed (YouTube, Vimeo, or MP4). */
   url: string
 }
 
+/**
+ * Embeds a video from YouTube, Vimeo, or direct MP4 URL.
+ * Renders an iframe for YouTube/Vimeo, or a video element for MP4.
+ */
 export function VideoPlayer({ url }: VideoPlayerProps) {
   const videoType = getVideoType(url)
   const embedUrl = getEmbedUrl(url)

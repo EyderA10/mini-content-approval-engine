@@ -10,10 +10,16 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Loader2, Plus, Film } from 'lucide-react'
 import { toast } from 'sonner'
+import { extractErrorMessage } from '@/lib/error'
 
+/**
+ * Form for creating new content pieces with title and video URL.
+ * @param onSuccess - Callback fired after successful creation with id and shareToken
+ */
 export function ContentForm({
   onSuccess,
 }: {
+  /** Callback fired on successful creation with { id, shareToken, title, videoUrl }. */
   onSuccess?: (data: CreateContentInput & { id: string; shareToken: string }) => void
 }) {
   const [isLoading, setIsLoading] = useState(false)
@@ -46,8 +52,7 @@ export function ContentForm({
       }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
-        const errorData = err.response.data.error
-        setError(errorData.videoUrl?.[0] || errorData.title?.[0] || 'Failed to create content')
+        setError(extractErrorMessage(err.response.data.error))
       } else {
         setError('An unexpected error occurred')
       }

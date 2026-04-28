@@ -3,30 +3,31 @@
 import { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
 import { createClient } from '@/lib/supabase'
+import { ContentPiece } from '@/lib/validators'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from './StatusBadge'
 import { Copy, ExternalLink, Loader2, Play, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
+import { POLL_INTERVAL, REALTIME_CHANNEL_NAME } from '@/lib/constants'
 
 const supabase = createClient()
-const POLL_INTERVAL = 3000
 
-type ContentPiece = {
-  id: string
-  title: string
-  video_url: string
-  status: 'pending' | 'approved' | 'rejected'
-  share_token: string
-  client_feedback: string | null
-  created_at: string
-}
-
+/**
+ * Displays a list of all content pieces with status badges.
+ * Uses Supabase Realtime to auto-update on changes.
+ */
 export function ContentList() {
   const [items, setItems] = useState<ContentPiece[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const lastUpdateRef = useRef<number>(0)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const itemsRef = useRef<ContentPiece[]>([])
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   useEffect(() => {
     let isActive = true
@@ -40,8 +41,8 @@ export function ContentList() {
           setItems(newItems)
           
           if (lastUpdateRef.current > 0) {
-            const addedItem = newItems.find((n: ContentPiece) => 
-              !items.some((o) => o.id === n.id)
+            const addedItem = newItems.find((n: ContentPiece) =>
+              !itemsRef.current.some((o) => o.id === n.id)
             )
             if (addedItem) {
               toast.success(`New content: ${addedItem.title}`)
@@ -88,7 +89,7 @@ export function ContentList() {
     fetchContent()
 
     const channel = supabase
-      .channel('content-updates')
+      .channel(REALTIME_CHANNEL_NAME)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'content_pieces' },
@@ -209,7 +210,7 @@ export function ContentList() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => copyLink(item.share_token)}
+                onClick={() => copyLink(item.share_token!)}
                 title="Copy share link"
               >
                 <Copy className="h-4 w-4 text-foreground" />
@@ -218,7 +219,7 @@ export function ContentList() {
                 variant="ghost"
                 size="icon"
                 onClick={() => {
-                  globalThis.open(`/approve/${item.share_token}`, '_blank')
+                  globalThis.open(`/approve/${item.share_token!}`, '_blank')
                 }}
                 title="Open review page"
               >

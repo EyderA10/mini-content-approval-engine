@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import { ContentForm } from '@/components/dashboard/ContentForm'
 import { ContentList } from '@/components/dashboard/ContentList'
-import { CreateContentInput } from '@/lib/validators'
 
 export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const handleContentCreated = (data: CreateContentInput & { id: string; shareToken: string }) => {
+  const handleContentCreated = () => {
     setRefreshKey((k) => k + 1)
   }
 

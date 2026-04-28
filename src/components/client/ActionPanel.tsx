@@ -9,35 +9,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Loader2, Check, X, User, Mail, MessageSquare, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
-
-function extractErrorMessage(error: unknown): string {
-  if (typeof error === 'string') return error
-  if (error === undefined) return 'An error occurred'
-  if (typeof error !== 'object') return 'An error occurred'
-  
-  const err = error as Record<string, unknown>
-  if (err.clientEmail && Array.isArray(err.clientEmail)) {
-    return (err.clientEmail[0] as string) || 'Invalid email'
-  }
-  if (err.clientName && Array.isArray(err.clientName)) {
-    return (err.clientName[0] as string) || 'Invalid name'
-  }
-  if (err.feedback && Array.isArray(err.feedback)) {
-    return (err.feedback[0] as string) || 'Feedback is required'
-  }
-  if (err.action && Array.isArray(err.action)) {
-    return (err.action[0] as string) || 'Invalid action'
-  }
-  
-  return 'An error occurred'
-}
+import { extractErrorMessage } from '@/lib/error'
 
 type ActionPanelProps = {
+  /** The unique share token for the content piece. */
   token: string
+  /** Current approval status of the content. */
   currentStatus: 'pending' | 'approved' | 'rejected'
+  /** Callback fired after an action is submitted. */
   onActionComplete?: () => void
 }
 
+/**
+ * Client-facing panel for approving or rejecting content.
+ * Shows different UI based on current status (pending/approved/rejected).
+ */
 export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPanelProps) {
   const [showFeedback, setShowFeedback] = useState(false)
   const [isLoading, setIsLoading] = useState(false)

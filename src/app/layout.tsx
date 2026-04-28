@@ -1,17 +1,8 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Plus_Jakarta_Sans, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/Header";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
-
-const cormorant = Cormorant_Garamond({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  display: "swap",
-});
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -28,7 +19,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "antialiased", cormorant.variable, "font-sans", geist.variable)}
+      className={cn("h-full", "antialiased", "font-sans", geist.variable)}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-gradient-subtle">

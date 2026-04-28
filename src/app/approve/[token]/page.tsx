@@ -5,19 +5,12 @@ import { ActionPanel } from '@/components/client/ActionPanel'
 import { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
 import { createClient } from '@/lib/supabase'
+import { ContentPiece } from '@/lib/validators'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { POLL_INTERVAL } from '@/lib/constants'
 
 const supabase = createClient()
-const POLL_INTERVAL = 3000
-
-type ContentPiece = {
-  id: string
-  title: string
-  video_url: string
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-}
 
 type Props = {
   params: Promise<{ token: string }>
@@ -38,8 +31,7 @@ export default function ClientPage({ params }: Props) {
         const newContent = response.data
         setContent(newContent)
         
-        if (prevStatusRef.current !== 'pending' && newContent.status === 'pending') {
-        } else if (prevStatusRef.current === 'pending' && newContent.status !== 'pending') {
+        if (prevStatusRef.current === 'pending' && newContent.status !== 'pending') {
           console.log('[Client] Status changed via polling:', newContent.status)
           if (newContent.status === 'approved') {
             toast.success('Content approved!')

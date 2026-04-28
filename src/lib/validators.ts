@@ -1,11 +1,20 @@
 import { z } from 'zod'
 import { videoUrlSchema } from './video'
 
+/**
+ * Schema for creating a new content piece (title + video URL).
+ * @see {CreateContentInput}
+ */
 export const createContentSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
   videoUrl: videoUrlSchema,
 })
 
+/**
+ * Schema for client approval/rejection action.
+ * Requires feedback when action is 'reject'.
+ * @see {ActionInput}
+ */
 export const actionSchema = z
   .object({
     action: z.enum(['approve', 'reject']),
@@ -27,4 +36,17 @@ export const actionSchema = z
   )
 
 export type CreateContentInput = z.infer<typeof createContentSchema>
+
+/** Input type for client action (approve/reject). */
 export type ActionInput = z.infer<typeof actionSchema>
+
+/** Content piece data from Supabase database. */
+export type ContentPiece = {
+  id: string
+  title: string
+  video_url: string
+  status: 'pending' | 'approved' | 'rejected'
+  share_token?: string
+  client_feedback?: string | null
+  created_at: string
+}
