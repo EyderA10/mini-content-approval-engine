@@ -14,8 +14,8 @@ import { useFetchContent } from '@/hooks/useFetchContent'
  * Displays a list of all content pieces with status badges.
  * Uses Supabase Realtime to auto-update on changes.
  */
-export function ContentList() {
-  const { items, isLoading, setItems } = useFetchContent()
+export function ContentList({ initialItems }: { initialItems?: ContentPiece[] }) {
+  const { items, isLoading, setItems } = useFetchContent(initialItems)
 
   const handleRealtimeEvent = useCallback((event: RealtimeEvent<ContentPiece>) => {
     if (event.eventType === 'INSERT' && event.new) {

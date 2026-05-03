@@ -7,17 +7,20 @@ import { toast } from 'sonner'
 /**
  * Fetches content pieces from the API on mount.
  * Uses the ignore flag pattern to prevent race conditions.
+ * @param initialData - Optional data pre-fetched server-side; skips API call if provided
  * @returns Object containing items, isLoading state, and setItems dispatcher
  */
-export function useFetchContent(): {
+export function useFetchContent(initialData?: ContentPiece[]): {
   items: ContentPiece[]
   isLoading: boolean
   setItems: Dispatch<SetStateAction<ContentPiece[]>>
 } {
-  const [items, setItems] = useState<ContentPiece[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [items, setItems] = useState<ContentPiece[]>(initialData ?? [])
+  const [isLoading, setIsLoading] = useState(initialData === undefined)
 
   useEffect(() => {
+    if (initialData) return
+
     let ignore = false
 
     const fetchContent = async () => {
@@ -41,7 +44,7 @@ export function useFetchContent(): {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [initialData])
 
   return { items, isLoading, setItems }
 }

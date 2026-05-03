@@ -1,14 +1,25 @@
-'use client'
-
-import { useState } from 'react'
+import { createAdminClient } from '@/lib/supabase-admin'
+import { ContentPiece } from '@/lib/validators'
 import { ContentForm } from '@/components/dashboard/ContentForm'
 import { ContentList } from '@/components/dashboard/ContentList'
 
-export default function DashboardPage() {
-  const [refreshKey, setRefreshKey] = useState(0)
+export const dynamic = 'force-dynamic'
 
-  const handleContentCreated = () => {
-    setRefreshKey((k) => k + 1)
+export default async function DashboardPage() {
+  let initialItems: ContentPiece[] = []
+
+  try {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from('content_pieces')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (data) {
+      initialItems = data
+    }
+  } catch {
+    initialItems = []
   }
 
   return (
@@ -37,7 +48,7 @@ export default function DashboardPage() {
                   Add a video for client review
                 </p>
               </div>
-              <ContentForm onSuccess={handleContentCreated} />
+              <ContentForm />
             </div>
           </div>
 
@@ -52,7 +63,7 @@ export default function DashboardPage() {
                   Live
                 </span>
               </div>
-              <ContentList key={refreshKey} />
+              <ContentList initialItems={initialItems} />
             </div>
           </div>
         </div>
