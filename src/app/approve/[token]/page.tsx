@@ -1,17 +1,14 @@
 'use client'
 
-import { VideoPlayer } from '@/components/client/VideoPlayer'
-import { ActionPanel } from '@/components/client/ActionPanel'
 import { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
-import { createClient } from '@/lib/supabase'
 import { ContentPiece } from '@/lib/validators'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { POLL_INTERVAL } from '@/lib/constants'
+import { useRealtimeWithPolling, RealtimeEvent } from '@/hooks/useRealtimeWithPolling'
 import { logger } from '@/lib/logger'
-
-const supabase = createClient()
+import { VideoPlayer } from '@/components/client/VideoPlayer'
+import { ActionPanel } from '@/components/client/ActionPanel'
 
 type Props = {
   params: Promise<{ token: string }>
@@ -21,41 +18,35 @@ export default function ClientPage({ params }: Props) {
   const [content, setContent] = useState<ContentPiece | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [token, setToken] = useState<string>('')
-  const isMountedRef = useRef(true)
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const prevStatusRef = useRef<string>('pending')
 
   const fetchContent = async (t: string) => {
     try {
       const response = await axios.get(`/api/content/${t}`)
-      if (isMountedRef.current && response.status === 200) {
+      if (response.status === 200) {
         const newContent = response.data
         setContent(newContent)
-        
-        if (prevStatusRef.current === 'pending' && newContent.status !== 'pending') {
-          logger.log('[Client] Status changed via polling:', newContent.status)
-          if (newContent.status === 'approved') {
-            toast.success('Content approved!')
-          } else if (newContent.status === 'rejected') {
-            toast.success('Feedback submitted')
-          }
-        }
-        
         prevStatusRef.current = newContent.status
       }
     } catch (error) {
       logger.error('[Client] Failed to fetch content:', error)
     } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false)
-      }
+      setIsLoading(false)
     }
   }
-  
+
   const handleActionComplete = () => {
     logger.log('[Client] Action completed, refetching...')
     if (token) {
       fetchContent(token)
+    }
+  }
+
+  const handleRealtimeEvent = (event: RealtimeEvent<ContentPiece>) => {
+    if (event.eventType === 'UPDATE' && event.new) {
+      const updatedContent = event.new
+      setContent(updatedContent)
+      prevStatusRef.current = updatedContent.status 
     }
   }
 
@@ -66,74 +57,12 @@ export default function ClientPage({ params }: Props) {
     })
   }, [params])
 
-  useEffect(() => {
-    if (!token || !isMountedRef.current) return
-
-    logger.log('[Client] Setting up realtime for token:', token)
-
-    const channel = supabase
-      .channel('content-updates')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'content_pieces', filter: `share_token=eq.${token}` },
-        (payload) => {
-          if (!isMountedRef.current) return
-          
-          logger.log('[Client] UPDATE received:', payload)
-          logger.log('[Client] New status:', payload.new?.status)
-          
-          if (payload.new) {
-            const updatedContent = payload.new as ContentPiece
-            setContent(updatedContent)
-            prevStatusRef.current = updatedContent.status
-            
-            if (updatedContent.status === 'approved') {
-              toast.success('Content approved!')
-            } else if (updatedContent.status === 'rejected') {
-              toast.success('Feedback submitted')
-            }
-          }
-        }
-      )
-      .subscribe((status) => {
-        logger.log('[Client] Subscription status:', status)
-        
-        if (status === 'SUBSCRIBED') {
-          logger.log('[Client] Realtime connected - polling disabled')
-        } else if (status === 'CLOSED' && !pollIntervalRef.current) {
-          logger.log('[Client] Realtime unavailable - starting polling')
-          
-          pollIntervalRef.current = setInterval(() => {
-            if (document.visibilityState === 'visible' && token) {
-              fetchContent(token)
-            }
-          }, POLL_INTERVAL)
-        }
-      })
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && token) {
-        logger.log('[Client] Tab visible - refetching')
-        fetchContent(token)
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      logger.log('[Client] Cleanup - unsubscribing from channel')
-      channel.unsubscribe()
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [token])
-
-  useEffect(() => {
-    isMountedRef.current = true
-    return () => { isMountedRef.current = false }
-  }, [])
+  useRealtimeWithPolling<ContentPiece>({
+    table: 'content_pieces',
+    filter: token ? `share_token=eq.${token}` : undefined,
+    channelName: token ? `client-${token}` : undefined,
+    onEvent: handleRealtimeEvent,
+  })
 
   if (isLoading) {
     return (

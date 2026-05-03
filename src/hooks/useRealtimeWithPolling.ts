@@ -1,7 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
-
-const POLL_INTERVAL = 3000
+import { logger } from '@/lib/logger'
 
 /** Types of database changes detected by Supabase Realtime. */
 export type RealtimeEventType = 'INSERT' | 'UPDATE' | 'DELETE'
@@ -16,49 +15,47 @@ export type RealtimeEvent<T> = {
   old?: T
 }
 
-type RealtimeOptions<T> = {
-  /** The database table to subscribe to. */
-  table: string
-  /** Optional filter expression (e.g., 'id=eq.123'). */
-  filter?: string
-  /** Callback fired on database changes. */
-  onEvent: (event: RealtimeEvent<T>) => void
-  /** Enable polling fallback if realtime unavailable (default: true). */
-  shouldPoll?: boolean
-}
+/** Subscription connection status from Supabase Realtime. */
+export type SubscriptionStatus = 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED'
 
 type UseRealtimeWithPollingReturn = {
-  /** Call to immediately stop subscriptions and polling. */
+  /** Call to unsubscribe from realtime channel. */
   unsubscribe: () => void
+  /** Current subscription status. */
+  status: SubscriptionStatus
+  /** True when subscription is actively connected. */
+  isSubscribed: boolean
 }
 
 /**
- * Subscribes to database changes with Supabase Realtime, falling back to polling if unavailable.
- * @template T - The data type of the table records
- * @param options - Configuration for the subscription
- * @returns Object with unsubscribe function
+ * Subscribes to database changes via Supabase Realtime.
+ * Uses real-time events only (no polling).
  */
 export function useRealtimeWithPolling<T>({
   table,
   filter,
+  channelName,
   onEvent,
-  shouldPoll = true,
-}: RealtimeOptions<T>): UseRealtimeWithPollingReturn {
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+}: {
+  table: string
+  filter?: string
+  channelName?: string
+  onEvent: (event: RealtimeEvent<T>) => void
+}): UseRealtimeWithPollingReturn {
+  const [status, setStatus] = useState<SubscriptionStatus>('CLOSED')
   const isActiveRef = useRef(true)
   const onEventRef = useRef(onEvent)
 
-  // Keep callback ref up to date
   useEffect(() => {
     onEventRef.current = onEvent
   }, [onEvent])
 
   useEffect(() => {
-    // Create client inside effect to ensure it's created in browser context
+    isActiveRef.current = true
     const supabase = createClient()
 
     const channel = supabase
-      .channel(`realtime-${table}-${Date.now()}`)
+      .channel(channelName || `realtime-${table}-${Date.now()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table, filter },
@@ -68,52 +65,40 @@ export function useRealtimeWithPolling<T>({
           const eventType = payload.eventType as RealtimeEventType
           onEventRef.current({
             eventType,
-            new: payload.new as T,
-            old: payload.old as T,
+            new: payload.new as T | undefined,
+            old: payload.old as T | undefined,
           })
         }
       )
       .subscribe((status) => {
-        console.log(`[Realtime] ${table} subscription status:`, status)
+        if (!isActiveRef.current) return
 
-        if (status === 'CLOSED' && shouldPoll && !pollIntervalRef.current) {
-          console.log(`[Realtime] ${table} unavailable - starting polling`)
-
-          pollIntervalRef.current = setInterval(() => {
-            if (document.visibilityState === 'visible' && isActiveRef.current) {
-              onEventRef.current({ eventType: 'UPDATE' })
-            }
-          }, POLL_INTERVAL)
+        if (status === 'SUBSCRIBED') {
+          setStatus('SUBSCRIBED')
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error(`[Realtime] Channel error for table: ${table}`)
+          setStatus('CHANNEL_ERROR')
+        } else if (status === 'TIMED_OUT') {
+          logger.warn('[Realtime] Subscription timed out for table:', table)
+          setStatus('TIMED_OUT')
+        } else if (status === 'CLOSED') {
+          setStatus('CLOSED')
         }
       })
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isActiveRef.current) {
-        console.log(`[Realtime] ${table} tab visible`)
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
     return () => {
       isActiveRef.current = false
-      channel.unsubscribe()
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      supabase.removeChannel(channel)
     }
-  }, [table, filter, shouldPoll])
+  }, [table, filter, channelName])
 
-  const unsubscribe = () => {
+  const unsubscribe = useCallback(() => {
     isActiveRef.current = false
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current)
-      pollIntervalRef.current = null
-    }
+  }, [])
+
+  return {
+    unsubscribe,
+    status,
+    isSubscribed: status === 'SUBSCRIBED',
   }
-
-  return { unsubscribe }
 }
-
-export { POLL_INTERVAL }

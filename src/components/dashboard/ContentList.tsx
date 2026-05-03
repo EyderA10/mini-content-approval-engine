@@ -1,135 +1,49 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import axios from 'axios'
-import { createClient } from '@/lib/supabase'
+import { useCallback } from 'react'
 import { ContentPiece } from '@/lib/validators'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from './StatusBadge'
-import { Copy, ExternalLink, Loader2, Play, MessageSquare } from 'lucide-react'
+import { Copy, ExternalLink, Loader2, Play, MessageSquare, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
-import { POLL_INTERVAL, REALTIME_CHANNEL_NAME } from '@/lib/constants'
-import { logger } from '@/lib/logger'
-
-const supabase = createClient()
+import { useRealtimeWithPolling, RealtimeEvent } from '@/hooks/useRealtimeWithPolling'
+import { useFetchContent } from '@/hooks/useFetchContent'
 
 /**
  * Displays a list of all content pieces with status badges.
  * Uses Supabase Realtime to auto-update on changes.
  */
 export function ContentList() {
-  const [items, setItems] = useState<ContentPiece[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const lastUpdateRef = useRef<number>(0)
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const itemsRef = useRef<ContentPiece[]>([])
+  const { items, isLoading, setItems } = useFetchContent()
 
-  // Keep ref in sync with state
-  useEffect(() => {
-    itemsRef.current = items
-  }, [items])
-
-  useEffect(() => {
-    let isActive = true
-
-    const fetchContent = async () => {
-      try {
-        const response = await axios.get('/api/content')
-        if (isActive && response.status === 200) {
-          const newItems = response.data
-          
-          setItems(newItems)
-          
-          if (lastUpdateRef.current > 0) {
-            const addedItem = newItems.find((n: ContentPiece) =>
-              !itemsRef.current.some((o) => o.id === n.id)
-            )
-            if (addedItem) {
-              toast.success(`New content: ${addedItem.title}`)
-            }
-          }
-          
-          lastUpdateRef.current = Date.now()
-        }
-      } catch (error) {
-        logger.error('[Dashboard] Failed to fetch content:', error)
-      } finally {
-        if (isActive) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    const handleRealtimeEvent = (payload: { eventType: string; new?: ContentPiece; old?: ContentPiece }) => {
-      logger.log('[Dashboard] Realtime event:', payload.eventType, payload)
-      
-      if (payload.eventType === 'INSERT' && payload.new) {
-        setItems((prev) => {
-          if (prev.some((item) => item.id === payload.new!.id)) return prev
-          return [payload.new!, ...prev]
-        })
-        toast.success(`New content: ${payload.new.title}`)
-      } else if (payload.eventType === 'UPDATE' && payload.new) {
-        setItems((prev) =>
-          prev.map((item) =>
-            item.id === payload.new!.id ? payload.new! : item
-          )
-        )
-        toast.success(`Updated: ${payload.new.title}`)
-      } else if (payload.eventType === 'DELETE' && payload.old) {
-        setItems((prev) =>
-          prev.filter((item) => item.id !== payload.old!.id)
-        )
-        toast.info(`Removed: ${payload.old.id}`)
-      }
-      
-      lastUpdateRef.current = Date.now()
-    }
-
-    fetchContent()
-
-    const channel = supabase
-      .channel(REALTIME_CHANNEL_NAME)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'content_pieces' },
-        handleRealtimeEvent as never
-      )
-      .subscribe((status) => {
-        logger.log('[Dashboard] Subscription status:', status)
-        
-        if (status === 'SUBSCRIBED') {
-          logger.log('[Dashboard] Realtime connected - polling disabled')
-        } else if (status === 'CLOSED' && !pollIntervalRef.current) {
-          logger.log('[Dashboard] Realtime unavailable - starting polling')
-          
-          pollIntervalRef.current = setInterval(() => {
-            if (document.visibilityState === 'visible') {
-              fetchContent()
-            }
-          }, POLL_INTERVAL)
-        }
+  const handleRealtimeEvent = useCallback((event: RealtimeEvent<ContentPiece>) => {
+    if (event.eventType === 'INSERT' && event.new) {
+      setItems((prev) => {
+        if (prev.some((item) => item.id === event.new!.id)) return prev
+        return [event.new!, ...prev]
       })
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        logger.log('[Dashboard] Tab visible - refetching')
-        fetchContent()
-      }
+      toast.success(`New content: ${event.new.title}`)
+    } else if (event.eventType === 'UPDATE' && event.new) {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === event.new!.id ? event.new! : item
+        )
+      )
+      toast.success(`Updated: ${event.new.title}`)
+    } else if (event.eventType === 'DELETE' && event.old) {
+      setItems((prev) =>
+        prev.filter((item) => item.id !== event.old!.id)
+      )
+      toast.info(`Removed: ${event.old.id}`)
     }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }, [setItems])
 
-    return () => {
-      isActive = false
-      channel.unsubscribe()
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
-        pollIntervalRef.current = null
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
+  const { isSubscribed } = useRealtimeWithPolling<ContentPiece>({
+    table: 'content_pieces',
+    channelName: 'dashboard-content',
+    onEvent: handleRealtimeEvent,
+  })
 
   const copyLink = (token: string) => {
     const url = `${globalThis.location.origin}/approve/${token}`
@@ -164,7 +78,18 @@ export function ContentList() {
   }
 
   return (
-    <div className="max-h-[400px] overflow-y-auto space-y-3 pr-1">
+    <div>
+      {/* Connection status indicator */}
+      <div className="mb-3 flex items-center gap-2">
+        {!isSubscribed && (
+          <div className="flex items-center gap-1.5 rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning">
+            <WifiOff className="h-3 w-3" />
+            <span>Reconnecting...</span>
+          </div>
+        )}
+      </div>
+
+      <div className="max-h-[400px] overflow-y-auto space-y-3 pr-1">
       {items.map((item, index) => (
         <Card
           key={item.id}
@@ -230,6 +155,7 @@ export function ContentList() {
           </div>
         </Card>
       ))}
+      </div>
     </div>
   )
 }
