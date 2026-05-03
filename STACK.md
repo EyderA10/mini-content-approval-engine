@@ -94,7 +94,7 @@
 ## Environment Variables
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://lvkmoqxqqygxmbcyzqvl.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 ```
 
