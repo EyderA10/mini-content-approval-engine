@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 /** Types of database changes detected by Supabase Realtime. */
 export type RealtimeEventType = 'INSERT' | 'UPDATE' | 'DELETE'
@@ -59,7 +60,7 @@ export function useRealtimeWithPolling<T>({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table, filter },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (!isActiveRef.current) return
 
           const eventType = payload.eventType as RealtimeEventType
@@ -70,7 +71,7 @@ export function useRealtimeWithPolling<T>({
           })
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (!isActiveRef.current) return
 
         if (status === 'SUBSCRIBED') {
