@@ -169,7 +169,7 @@ describe('actionSchema', () => {
   describe('approve action', () => {
     it('should validate approve with no optional fields', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
       }
 
       const result = actionSchema.safeParse(input)
@@ -179,7 +179,7 @@ describe('actionSchema', () => {
 
     it('should validate approve with client name', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
         clientName: faker.person.fullName(),
       }
 
@@ -190,7 +190,7 @@ describe('actionSchema', () => {
 
     it('should validate approve with client email', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
         clientEmail: faker.internet.email(),
       }
 
@@ -201,7 +201,7 @@ describe('actionSchema', () => {
 
     it('should validate approve with client name and email', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
         clientName: faker.person.fullName(),
         clientEmail: faker.internet.email(),
       }
@@ -213,7 +213,7 @@ describe('actionSchema', () => {
 
     it('should validate approve with empty string email', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
         clientEmail: '',
       }
 
@@ -226,7 +226,7 @@ describe('actionSchema', () => {
   describe('reject action', () => {
     it('should validate reject with feedback', () => {
       const input = {
-        action: 'reject',
+        action: 'rejected',
         feedback: faker.lorem.paragraph(),
       }
 
@@ -237,7 +237,7 @@ describe('actionSchema', () => {
 
     it('should reject reject without feedback', () => {
       const input = {
-        action: 'reject',
+        action: 'rejected',
       }
 
       const result = actionSchema.safeParse(input)
@@ -250,7 +250,7 @@ describe('actionSchema', () => {
 
     it('should reject reject with empty feedback', () => {
       const input = {
-        action: 'reject',
+        action: 'rejected',
         feedback: '',
       }
 
@@ -261,7 +261,7 @@ describe('actionSchema', () => {
 
     it('should reject reject with whitespace-only feedback', () => {
       const input = {
-        action: 'reject',
+        action: 'rejected',
         feedback: '   ',
       }
 
@@ -272,7 +272,7 @@ describe('actionSchema', () => {
 
     it('should validate reject with feedback and client info', () => {
       const input = {
-        action: 'reject',
+        action: 'rejected',
         feedback: faker.lorem.paragraph(),
         clientName: faker.person.fullName(),
         clientEmail: faker.internet.email(),
@@ -285,7 +285,7 @@ describe('actionSchema', () => {
 
     it('should reject feedback that is too long', () => {
       const input = {
-        action: 'reject',
+        action: 'rejected',
         feedback: 'a'.repeat(2001),
       }
 
@@ -321,7 +321,7 @@ describe('actionSchema', () => {
 
     it('should reject invalid email format', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
         clientEmail: 'not-an-email',
       }
 
@@ -335,7 +335,7 @@ describe('actionSchema', () => {
 
     it('should reject client name that is too long', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
         clientName: 'a'.repeat(101),
       }
 
@@ -349,7 +349,7 @@ describe('actionSchema', () => {
 
     it('should reject client email that is too long', () => {
       const input = {
-        action: 'approve',
+        action: 'approved',
         clientEmail: `${'a'.repeat(100)}@example.com`,
       }
 

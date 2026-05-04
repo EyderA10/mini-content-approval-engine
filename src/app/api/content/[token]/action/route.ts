@@ -1,60 +1,71 @@
 import { createAdminClient } from '@/lib/supabase-admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { actionSchema } from '@/lib/validators'
-import { rateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit'
+import { rateLimit, getClientIp, RATE_LIMITS, createRateLimitResponse, applyRateLimitHeaders } from '@/lib/rate-limit'
+import { auditLog, AuditLogEntry } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 /**
- * Simple audit logger - logs to console in development.
- * In production, this would write to an audit_logs table or external service.
+ * Handles database update errors with appropriate responses and audit logging.
+ * Uses early returns to avoid nested conditionals.
  */
-function auditLog(entry: {
-  action: string
+async function handleUpdateError(
+  error: { code?: string },
+  preAuditEntry: Omit<AuditLogEntry, 'errorMessage'>,
   token: string
-  clientName?: string | null
-  clientEmail?: string | null
-  ip: string
-  userAgent: string | null
-  timestamp: string
-  success: boolean
-  errorMessage?: string
-}) {
-  const logEntry = {
-    ...entry,
-    // Mask email for privacy in logs
-    clientEmail: entry.clientEmail ? `${entry.clientEmail.split('@')[0]}***@***` : undefined,
+): Promise<NextResponse> {
+  // If PGRST116 (no rows returned), status was not pending — already reviewed
+  if (error.code === 'PGRST116') {
+    return handleAlreadyReviewed(preAuditEntry, token)
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[AUDIT]', JSON.stringify(logEntry, null, 2))
-  }
+  auditLog({
+    ...preAuditEntry,
+    errorMessage: 'Database update failed',
+  })
+  logger.error('[API] Error processing action:', error)
+  return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
+}
 
-  // In production, write to audit_logs table:
-  // await supabase.from('audit_logs').insert({ ... })
+/**
+ * Checks if content exists and returns appropriate error response.
+ */
+async function handleAlreadyReviewed(
+  preAuditEntry: Omit<AuditLogEntry, 'errorMessage'>,
+  token: string
+): Promise<NextResponse> {
+  const supabase = createAdminClient()
+  const { data: existing } = await supabase
+    .from('content_pieces')
+    .select('id, status')
+    .eq('share_token', token)
+    .single()
+
+  const alreadyReviewed = !!existing
+  auditLog({
+    ...preAuditEntry,
+    errorMessage: alreadyReviewed ? 'Content already reviewed' : 'Content not found',
+  })
+  return NextResponse.json(
+    {
+      error: alreadyReviewed
+        ? 'Content has already been reviewed'
+        : 'Content not found',
+    },
+    { status: alreadyReviewed ? 409 : 404 }
+  )
 }
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
-  // 1. CSRF Protection - check origin
-  const origin = request.headers.get('origin')
-  const allowedOrigin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  if (origin && origin !== allowedOrigin) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  // 2. Rate Limiting for actions
+  // Rate Limiting for actions
   const ip = getClientIp(request)
   const rateLimitResult = rateLimit(ip, RATE_LIMITS.ACTION)
 
   if (!rateLimitResult.allowed) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      {
-        status: 429,
-        headers: rateLimitResult.headers,
-      }
-    )
+    return createRateLimitResponse(rateLimitResult.headers)
   }
 
   try {
@@ -63,7 +74,7 @@ export async function POST(
     const result = actionSchema.safeParse(body)
 
     // Audit log - BEFORE processing (even if validation fails)
-    const preAuditEntry = {
+    const preAuditEntry: Omit<AuditLogEntry, 'errorMessage'> = {
       action: body?.action || 'unknown',
       token,
       clientName: body?.clientName,
@@ -86,37 +97,15 @@ export async function POST(
     }
 
     const supabase = createAdminClient()
-    const { data: existing } = await supabase
-      .from('content_pieces')
-      .select('id, status')
-      .eq('share_token', token)
-      .single()
 
-    if (!existing) {
-      auditLog({
-        ...preAuditEntry,
-        errorMessage: 'Content not found',
-      })
-      return NextResponse.json({ error: 'Content not found' }, { status: 404 })
-    }
-
-    if (existing.status !== 'pending') {
-      auditLog({
-        ...preAuditEntry,
-        errorMessage: 'Content already reviewed',
-      })
-      return NextResponse.json(
-        { error: 'Content has already been reviewed' },
-        { status: 400 }
-      )
-    }
-
+    // Atomic conditional update: only update if status is 'pending'
+    // This prevents double-approval/rejection under concurrent requests
     const updateData: Record<string, unknown> = {
-      status: result.data.action === 'approve' ? 'approved' : 'rejected',
+      status: result.data.action,
       client_name: result.data.clientName || null,
       client_email: result.data.clientEmail || null,
       client_feedback:
-        result.data.action === 'reject' ? result.data.feedback || null : null,
+        result.data.action === 'rejected' ? result.data.feedback || null : null,
       updated_at: new Date().toISOString(),
     }
 
@@ -124,43 +113,34 @@ export async function POST(
       .from('content_pieces')
       .update(updateData)
       .eq('share_token', token)
+      .eq('status', 'pending')
       .select()
       .single()
 
     if (error) {
-      auditLog({
-        ...preAuditEntry,
-        errorMessage: 'Database update failed',
-      })
-      console.error('[API] Error processing action:', error)
-      return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
+      return handleUpdateError(error, preAuditEntry, token)
     }
 
-    // Success audit log
+    // Success audit log (reuse preAuditEntry via spread)
     auditLog({
+      ...preAuditEntry,
       action: result.data.action,
-      token,
       clientName: result.data.clientName,
       clientEmail: result.data.clientEmail,
-      ip,
-      userAgent: request.headers.get('user-agent'),
-      timestamp: new Date().toISOString(),
       success: true,
     })
 
     const response = NextResponse.json({
       success: true,
       message:
-        result.data.action === 'approve'
+        result.data.action === 'approved'
           ? 'Content approved'
           : 'Content rejected with feedback',
     })
-    Object.entries(rateLimitResult.headers).forEach(([key, value]) => {
-      response.headers.set(key, value)
-    })
+    applyRateLimitHeaders(response, rateLimitResult.headers)
     return response
-  } catch (_error) {
-    console.error('[API] Error processing action:')
+  } catch (error) {
+    logger.error('[API] Error processing action:', error)
     return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
   }
 }

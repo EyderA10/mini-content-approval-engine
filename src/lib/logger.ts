@@ -1,6 +1,7 @@
 /**
- * Conditional logger that only outputs in development mode.
- * Use this instead of console.log/error to avoid leaking information in production.
+ * Conditional logger that provides full output in development
+ * and error-level output in production for observability.
+ * Use this instead of console.log/error directly.
  */
 
 type LogArgs = unknown[]
@@ -16,12 +17,11 @@ export const logger = {
   },
 
   /**
-   * Logs errors to console in development mode only.
+   * Logs errors to console in all environments.
+   * In production, errors are logged for cloud platform observability.
    */
   error: (...args: LogArgs) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.error(...args)
-    }
+    console.error(...args)
   },
 
   /**

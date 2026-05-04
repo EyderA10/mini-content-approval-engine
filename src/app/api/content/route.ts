@@ -1,7 +1,10 @@
 import { createAdminClient } from '@/lib/supabase-admin'
+import { createServerClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 import { createContentSchema } from '@/lib/validators'
-import { rateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit'
+import { rateLimit, getClientIp, RATE_LIMITS, createRateLimitResponse, applyRateLimitHeaders } from '@/lib/rate-limit'
+import { parsePaginationParams } from '@/lib/pagination'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   // Apply rate limiting for reads
@@ -9,34 +12,43 @@ export async function GET(request: NextRequest) {
   const rateLimitResult = rateLimit(ip, RATE_LIMITS.READ)
 
   if (!rateLimitResult.allowed) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.' },
-      {
-        status: 429,
-        headers: rateLimitResult.headers,
-      }
-    )
+    return createRateLimitResponse(rateLimitResult.headers)
   }
 
   try {
-    const supabase = createAdminClient()
-    const { data, error } = await supabase
+    // Use anon-key server client for read-only queries (respects RLS)
+    const supabase = createServerClient()
+
+    const { page, limit, offset } = parsePaginationParams(new URL(request.url))
+
+    const { data, error, count } = await supabase
       .from('content_pieces')
-      .select('*')
+      .select(
+        'id, title, video_url, status, created_at, share_token, client_name, client_email, client_feedback',
+        { count: 'exact' }
+      )
       .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
     if (error) {
-      console.error('[API] Error:', error)
+      logger.error('[API] Error fetching content:', error)
       return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
     }
 
-    const response = NextResponse.json(data)
-    Object.entries(rateLimitResult.headers).forEach(([key, value]) => {
-      response.headers.set(key, value)
+    const total = count ?? 0
+    const response = NextResponse.json({
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        hasMore: total > offset + limit,
+      },
     })
+    applyRateLimitHeaders(response, rateLimitResult.headers)
     return response
-  } catch (_error) {
-    console.error('[API] Error:')
+  } catch (error) {
+    logger.error('[API] Error fetching content:', error)
     return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
   }
 }
@@ -78,7 +90,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('[API] Error creating content:', error)
+      logger.error('[API] Error creating content:', error)
       return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
     }
 
@@ -87,8 +99,8 @@ export async function POST(request: NextRequest) {
       response.headers.set(key, value)
     })
     return response
-  } catch (_error) {
-    console.error('[API] Error creating content:')
+  } catch (error) {
+    logger.error('[API] Error creating content:', error)
     return NextResponse.json({ error: 'An error occurred' }, { status: 500 })
   }
 }

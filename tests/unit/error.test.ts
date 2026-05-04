@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { extractErrorMessage } from '@/lib/error'
-import axios from 'axios'
-import { faker } from '@faker-js/faker'
 
 describe('extractErrorMessage', () => {
   describe('string errors', () => {
@@ -57,7 +55,7 @@ describe('extractErrorMessage', () => {
     })
   })
 
-  describe('axios errors', () => {
+  describe('axios-like errors', () => {
     it('should extract field-specific error for clientEmail', () => {
       const error = {
         response: {
@@ -67,13 +65,9 @@ describe('extractErrorMessage', () => {
         },
         isAxiosError: true,
       }
-      // Mock axios.isAxiosError
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Invalid email format')
-
-      vi.restoreAllMocks()
     })
 
     it('should extract field-specific error for clientName', () => {
@@ -83,13 +77,11 @@ describe('extractErrorMessage', () => {
             clientName: ['Name is too long'],
           },
         },
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Name is too long')
-
-      vi.restoreAllMocks()
     })
 
     it('should extract field-specific error for feedback', () => {
@@ -99,13 +91,11 @@ describe('extractErrorMessage', () => {
             feedback: ['Feedback is required'],
           },
         },
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Feedback is required')
-
-      vi.restoreAllMocks()
     })
 
     it('should extract field-specific error for action', () => {
@@ -115,13 +105,11 @@ describe('extractErrorMessage', () => {
             action: ['Invalid action'],
           },
         },
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Invalid action')
-
-      vi.restoreAllMocks()
     })
 
     it('should extract field-specific error for title', () => {
@@ -131,13 +119,11 @@ describe('extractErrorMessage', () => {
             title: ['Title is required'],
           },
         },
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Title is required')
-
-      vi.restoreAllMocks()
     })
 
     it('should extract field-specific error for videoUrl', () => {
@@ -147,13 +133,11 @@ describe('extractErrorMessage', () => {
             videoUrl: ['Invalid video URL'],
           },
         },
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Invalid video URL')
-
-      vi.restoreAllMocks()
     })
 
     it('should extract generic error message from axios response', () => {
@@ -163,26 +147,22 @@ describe('extractErrorMessage', () => {
             error: 'Content not found',
           },
         },
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Content not found')
-
-      vi.restoreAllMocks()
     })
 
     it('should handle axios error without response data', () => {
       const error = {
         response: null,
         message: 'Network Error',
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Network Error')
-
-      vi.restoreAllMocks()
     })
 
     it('should return first error in array for field with multiple errors', () => {
@@ -192,13 +172,11 @@ describe('extractErrorMessage', () => {
             clientEmail: ['Required', 'Must be valid email'],
           },
         },
+        isAxiosError: true,
       }
-      vi.spyOn(axios, 'isAxiosError').mockReturnValue(true)
 
       const result = extractErrorMessage(error)
       expect(result).toBe('Required')
-
-      vi.restoreAllMocks()
     })
   })
 

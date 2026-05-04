@@ -17,23 +17,20 @@ export const createContentSchema = z.object({
  */
 export const actionSchema = z
   .object({
-    action: z.enum(['approve', 'reject']),
+    action: z.enum(['approved', 'rejected']),
     clientName: z.string().max(100, 'Name must be under 100 characters').optional(),
     clientEmail: z.email('Invalid email').max(100, 'Email must be under 100 characters').optional().or(z.literal('')),
     feedback: z.string().max(2000, 'Feedback must be under 2000 characters').optional(),
   })
-  .refine(
-    (data) => {
-      if (data.action === 'reject' && (!data.feedback || data.feedback.trim() === '')) {
-        return false
-      }
-      return true
-    },
-    {
-      message: 'Feedback is required when rejecting',
-      path: ['feedback'],
+  .superRefine((data, ctx) => {
+    if (data.action === 'rejected' && (!data.feedback || data.feedback.trim() === '')) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Feedback is required when rejecting',
+        path: ['feedback'],
+      })
     }
-  )
+  })
 
 export type CreateContentInput = z.infer<typeof createContentSchema>
 

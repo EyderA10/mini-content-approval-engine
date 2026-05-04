@@ -35,7 +35,7 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
     setIsLoading(true)
     try {
       await axios.post(`/api/content/${token}/action`, {
-        action: 'approve',
+        action: 'approved',
         clientName: clientName || undefined,
         clientEmail: clientEmail || undefined,
       })
@@ -62,7 +62,7 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
     setIsLoading(true)
     try {
       await axios.post(`/api/content/${token}/action`, {
-        action: 'reject',
+        action: 'rejected',
         feedback,
         clientName: clientName || undefined,
         clientEmail: clientEmail || undefined,

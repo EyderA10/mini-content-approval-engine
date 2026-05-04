@@ -181,14 +181,14 @@ describe('getClientIp', () => {
     expect(ip).toBe('203.0.113.50')
   })
 
-  it('should return "unknown" when no headers are present', () => {
+  it('should return a request-scoped UUID when no headers are present', () => {
     const request = new Request('http://localhost')
 
     const ip = getClientIp(request)
-    expect(ip).toBe('unknown')
+    expect(ip).toMatch(/^anon-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   })
 
-  it('should handle empty x-forwarded-for header', () => {
+  it('should return a request-scored UUID when x-forwarded-for is empty', () => {
     const request = new Request('http://localhost', {
       headers: {
         'x-forwarded-for': '',
@@ -196,7 +196,7 @@ describe('getClientIp', () => {
     })
 
     const ip = getClientIp(request)
-    expect(ip).toBe('unknown')
+    expect(ip).toMatch(/^anon-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
   })
 })
 
