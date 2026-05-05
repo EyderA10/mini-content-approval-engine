@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { getVideoType, isValidVideoUrl, getVideoId, getEmbedUrl, type VideoType } from '@/lib/video'
+import { getVideoType, isValidVideoUrl, getVideoId, getEmbedUrl } from '@/lib/video'
+import { VideoType } from '@/lib/enums'
 import { faker } from '@faker-js/faker'
 
 describe('getVideoType', () => {
@@ -127,41 +128,41 @@ describe('getVideoId', () => {
   describe('YouTube', () => {
     it('should extract ID from standard watch URL', () => {
       const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-      expect(getVideoId(url, 'youtube')).toBe('dQw4w9WgXcQ')
+      expect(getVideoId(url, VideoType.YouTube)).toBe('dQw4w9WgXcQ')
     })
 
     it('should extract ID from short URL', () => {
       const url = 'https://youtu.be/dQw4w9WgXcQ'
-      expect(getVideoId(url, 'youtube')).toBe('dQw4w9WgXcQ')
+      expect(getVideoId(url, VideoType.YouTube)).toBe('dQw4w9WgXcQ')
     })
 
     it('should extract ID from embed URL', () => {
       const url = 'https://www.youtube.com/embed/dQw4w9WgXcQ'
-      expect(getVideoId(url, 'youtube')).toBe('dQw4w9WgXcQ')
+      expect(getVideoId(url, VideoType.YouTube)).toBe('dQw4w9WgXcQ')
     })
 
     it('should return null for invalid YouTube URL with correct type', () => {
       const url = 'https://www.youtube.com/invalid'
-      expect(getVideoId(url, 'youtube')).toBeNull()
+      expect(getVideoId(url, VideoType.YouTube)).toBeNull()
     })
   })
 
   describe('Vimeo', () => {
     it('should extract ID from standard URL', () => {
       const url = 'https://vimeo.com/123456789'
-      expect(getVideoId(url, 'vimeo')).toBe('123456789')
+      expect(getVideoId(url, VideoType.Vimeo)).toBe('123456789')
     })
 
     it('should extract ID from player URL', () => {
       const url = 'https://player.vimeo.com/video/123456789'
-      expect(getVideoId(url, 'vimeo')).toBe('123456789')
+      expect(getVideoId(url, VideoType.Vimeo)).toBe('123456789')
     })
   })
 
   describe('MP4', () => {
     it('should return the full URL as ID', () => {
       const url = 'https://example.com/video.mp4'
-      expect(getVideoId(url, 'mp4')).toBe(url)
+      expect(getVideoId(url, VideoType.MP4)).toBe(url)
     })
   })
 

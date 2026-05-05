@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { videoUrlSchema } from './video'
+import { ContentStatus } from './enums'
 
 /**
  * Schema for creating a new content piece (title + video URL).
@@ -17,13 +18,13 @@ export const createContentSchema = z.object({
  */
 export const actionSchema = z
   .object({
-    action: z.enum(['approved', 'rejected']),
+    action: z.enum(ContentStatus).refine((v) => v !== ContentStatus.Pending, { message: 'Invalid action' }),
     clientName: z.string().max(100, 'Name must be under 100 characters').optional(),
     clientEmail: z.email('Invalid email').max(100, 'Email must be under 100 characters').optional().or(z.literal('')),
     feedback: z.string().max(2000, 'Feedback must be under 2000 characters').optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.action === 'rejected' && (!data.feedback || data.feedback.trim() === '')) {
+    if (data.action === ContentStatus.Rejected && (!data.feedback || data.feedback.trim() === '')) {
       ctx.addIssue({
         code: 'custom',
         message: 'Feedback is required when rejecting',
@@ -42,7 +43,7 @@ export type ContentPiece = {
   id: string
   title: string
   video_url: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: ContentStatus
   share_token?: string
   client_feedback?: string | null
   created_at: string

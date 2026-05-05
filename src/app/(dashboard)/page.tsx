@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase-admin'
 import { ContentPiece } from '@/lib/validators'
 import { ContentForm } from '@/components/dashboard/ContentForm'
 import { ContentList } from '@/components/dashboard/ContentList'
+import { DBColumn, DBTable } from '@/lib/enums'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,9 +12,9 @@ export default async function DashboardPage() {
   try {
     const supabase = createAdminClient()
     const { data } = await supabase
-      .from('content_pieces')
+      .from(DBTable.ContentPieces)
       .select('*')
-      .order('created_at', { ascending: false })
+      .order(DBColumn.CreatedAt, { ascending: false })
 
     if (data) {
       initialItems = data

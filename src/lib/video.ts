@@ -1,11 +1,9 @@
 import { z } from 'zod'
+import { VideoType } from './enums'
 
 const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
 const VIMEO_REGEX = /(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/
 const MP4_REGEX = /\.mp4(\?|#|$)/i
-
-/** Supported video platforms. */
-export type VideoType = 'youtube' | 'vimeo' | 'mp4'
 
 /**
  * Detects the video platform from a URL.
@@ -13,9 +11,9 @@ export type VideoType = 'youtube' | 'vimeo' | 'mp4'
  * @returns The video type or null if unsupported
  */
 export function getVideoType(url: string): VideoType | null {
-  if (YOUTUBE_REGEX.test(url)) return 'youtube'
-  if (VIMEO_REGEX.test(url)) return 'vimeo'
-  if (MP4_REGEX.test(url)) return 'mp4'
+  if (YOUTUBE_REGEX.test(url)) return VideoType.YouTube
+  if (VIMEO_REGEX.test(url)) return VideoType.Vimeo
+  if (MP4_REGEX.test(url)) return VideoType.MP4
   return null
 }
 
@@ -36,15 +34,15 @@ export function isValidVideoUrl(url: string): boolean {
  */
 export function getVideoId(url: string, type: VideoType): string | null {
   switch (type) {
-    case 'youtube': {
+    case VideoType.YouTube: {
       const match = url.match(YOUTUBE_REGEX)
       return match ? match[1] : null
     }
-    case 'vimeo': {
+    case VideoType.Vimeo: {
       const match = url.match(VIMEO_REGEX)
       return match ? match[1] : null
     }
-    case 'mp4':
+    case VideoType.MP4:
       return url
     default:
       return null
@@ -64,11 +62,11 @@ export function getEmbedUrl(url: string): string | null {
   if (!id) return null
 
   switch (type) {
-    case 'youtube':
+    case VideoType.YouTube:
       return `https://www.youtube-nocookie.com/embed/${id}`
-    case 'vimeo':
+    case VideoType.Vimeo:
       return `https://player.vimeo.com/video/${id}`
-    case 'mp4':
+    case VideoType.MP4:
       // Validate protocol for MP4 URLs to prevent javascript: or other dangerous protocols
       try {
         const parsed = new URL(url)

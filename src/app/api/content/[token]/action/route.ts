@@ -4,6 +4,8 @@ import { actionSchema } from '@/lib/validators'
 import { rateLimit, getClientIp, RATE_LIMITS, createRateLimitResponse, applyRateLimitHeaders } from '@/lib/rate-limit'
 import { auditLog, AuditLogEntry } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import { ContentStatus, DBTable, DBColumn, DBErrorCode } from '@/lib/enums'
+import { SELECT_CONTENT_STATUS } from '@/lib/constants'
 
 /**
  * Handles database update errors with appropriate responses and audit logging.
@@ -15,7 +17,7 @@ async function handleUpdateError(
   token: string
 ): Promise<NextResponse> {
   // If PGRST116 (no rows returned), status was not pending — already reviewed
-  if (error.code === 'PGRST116') {
+  if (error.code === DBErrorCode.NoRowsFound) {
     return handleAlreadyReviewed(preAuditEntry, token)
   }
 
@@ -36,9 +38,9 @@ async function handleAlreadyReviewed(
 ): Promise<NextResponse> {
   const supabase = createAdminClient()
   const { data: existing } = await supabase
-    .from('content_pieces')
-    .select('id, status')
-    .eq('share_token', token)
+    .from(DBTable.ContentPieces)
+    .select(SELECT_CONTENT_STATUS)
+    .eq(DBColumn.ShareToken, token)
     .single()
 
   const alreadyReviewed = !!existing
@@ -105,15 +107,15 @@ export async function POST(
       client_name: result.data.clientName || null,
       client_email: result.data.clientEmail || null,
       client_feedback:
-        result.data.action === 'rejected' ? result.data.feedback || null : null,
+        result.data.action === ContentStatus.Rejected ? result.data.feedback || null : null,
       updated_at: new Date().toISOString(),
     }
 
     const { error } = await supabase
-      .from('content_pieces')
+      .from(DBTable.ContentPieces)
       .update(updateData)
-      .eq('share_token', token)
-      .eq('status', 'pending')
+      .eq(DBColumn.ShareToken, token)
+      .eq(DBColumn.Status, ContentStatus.Pending)
       .select()
       .single()
 
@@ -133,7 +135,7 @@ export async function POST(
     const response = NextResponse.json({
       success: true,
       message:
-        result.data.action === 'approved'
+        result.data.action === ContentStatus.Approved
           ? 'Content approved'
           : 'Content rejected with feedback',
     })

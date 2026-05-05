@@ -20,6 +20,7 @@ Improve code quality, maintainability, and performance without changing function
 - Inspect all components for complexity, readability, and maintainability issues
 - Identify code smells, duplication, and architectural problems
 - Check for proper error handling and validation patterns
+- Inspect code to avoid use data hardcoded replaced them instead to enums
 
 ### 2. Apply Best Practices
 - Enforce DRY, SOLID, and clean code principles

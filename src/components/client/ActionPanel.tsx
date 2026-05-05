@@ -10,12 +10,13 @@ import { Card } from "@/components/ui/card"
 import { Loader2, Check, X, User, Mail, MessageSquare, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { extractErrorMessage } from '@/lib/error'
+import { ContentStatus } from '@/lib/enums'
 
 type ActionPanelProps = {
   /** The unique share token for the content piece. */
   token: string
   /** Current approval status of the content. */
-  currentStatus: 'pending' | 'approved' | 'rejected'
+  currentStatus: ContentStatus
   /** Callback fired after an action is submitted. */
   onActionComplete?: () => void
 }
@@ -35,7 +36,7 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
     setIsLoading(true)
     try {
       await axios.post(`/api/content/${token}/action`, {
-        action: 'approved',
+        action: ContentStatus.Approved,
         clientName: clientName || undefined,
         clientEmail: clientEmail || undefined,
       })
@@ -62,7 +63,7 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
     setIsLoading(true)
     try {
       await axios.post(`/api/content/${token}/action`, {
-        action: 'rejected',
+        action: ContentStatus.Rejected,
         feedback,
         clientName: clientName || undefined,
         clientEmail: clientEmail || undefined,
@@ -81,28 +82,28 @@ export function ActionPanel({ token, currentStatus, onActionComplete }: ActionPa
     }
   }
 
-  if (currentStatus !== 'pending') {
+  if (currentStatus !== ContentStatus.Pending) {
     return (
       <Card className="p-8 text-center">
         <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${
-          currentStatus === 'approved' 
+          currentStatus === ContentStatus.Approved 
             ? 'bg-success-subtle text-success' 
             : 'bg-error-subtle text-error'
         }`}>
-          {currentStatus === 'approved' ? (
+          {currentStatus === ContentStatus.Approved ? (
             <CheckCircle2 className="h-8 w-8" />
           ) : (
             <XCircle className="h-8 w-8" />
           )}
         </div>
         <div className={`inline-block rounded-full px-6 py-2 text-lg font-semibold ${
-          currentStatus === 'approved' 
+          currentStatus === ContentStatus.Approved 
             ? 'bg-success-subtle text-success border border-success/20' 
             : 'bg-error-subtle text-error border border-error/20'
         }`}>
-          {currentStatus === 'approved' ? 'Approved' : 'Rejected'}
+          {currentStatus === ContentStatus.Approved ? 'Approved' : 'Rejected'}
         </div>
-        {currentStatus === 'rejected' && (
+        {currentStatus === ContentStatus.Rejected && (
           <p className="mt-4 text-foreground-muted">
             Thank you for your feedback. The team will review your notes.
           </p>

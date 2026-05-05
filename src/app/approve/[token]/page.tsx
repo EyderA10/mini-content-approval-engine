@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import { ClientApprovalView } from '@/components/client/ClientApprovalView'
+import { DBColumn, DBTable } from '@/lib/enums'
 
 type Props = {
   params: Promise<{ token: string }>
@@ -11,9 +12,9 @@ export default async function ClientPage({ params }: Props) {
 
   const supabase = createAdminClient()
   const { data, error } = await supabase
-    .from('content_pieces')
+    .from(DBTable.ContentPieces)
     .select('*')
-    .eq('share_token', token)
+    .eq(DBColumn.ShareToken, token)
     .single()
 
   if (error || !data) {

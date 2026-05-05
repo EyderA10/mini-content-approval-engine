@@ -5,6 +5,8 @@ import { createContentSchema } from '@/lib/validators'
 import { rateLimit, getClientIp, RATE_LIMITS, createRateLimitResponse, applyRateLimitHeaders } from '@/lib/rate-limit'
 import { parsePaginationParams } from '@/lib/pagination'
 import { logger } from '@/lib/logger'
+import { DBTable, DBColumn } from '@/lib/enums'
+import { SELECT_CONTENT_ALL } from '@/lib/constants'
 
 export async function GET(request: NextRequest) {
   // Apply rate limiting for reads
@@ -22,12 +24,12 @@ export async function GET(request: NextRequest) {
     const { page, limit, offset } = parsePaginationParams(new URL(request.url))
 
     const { data, error, count } = await supabase
-      .from('content_pieces')
+      .from(DBTable.ContentPieces)
       .select(
-        'id, title, video_url, status, created_at, share_token, client_name, client_email, client_feedback',
+        SELECT_CONTENT_ALL,
         { count: 'exact' }
       )
-      .order('created_at', { ascending: false })
+      .order(DBColumn.CreatedAt, { ascending: false })
       .range(offset, offset + limit - 1)
 
     if (error) {
@@ -81,10 +83,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient()
     const { data, error } = await supabase
-      .from('content_pieces')
+      .from(DBTable.ContentPieces)
       .insert({
-        title: result.data.title,
-        video_url: result.data.videoUrl,
+        [DBColumn.Title]: result.data.title,
+        [DBColumn.VideoUrl]: result.data.videoUrl,
       })
       .select()
       .single()

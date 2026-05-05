@@ -12,7 +12,7 @@ test.describe('Client Approval Page', () => {
     await expect(page.getByText('This link may be invalid or expired.')).toBeVisible()
   })
 
-  test('should display video and action panel for valid token', async ({ page }) => {
+  test('should display video and action panel for valid token', async () => {
     // This test assumes there's a valid token in the system
     // For demo purposes, we'll skip the actual navigation
     // In real tests, create content via API first and get the token
@@ -20,15 +20,15 @@ test.describe('Client Approval Page', () => {
     test.skip('This test requires a valid token - create content via API first', () => {})
   })
 
-  test('should approve content with client info', async ({ page }) => {
+  test('should approve content with client info', async () => {
     test.skip('This test requires a valid token - create content via API first', () => {})
   })
 
-  test('should reject content with feedback', async ({ page }) => {
+  test('should reject content with feedback', async () => {
     test.skip('This test requires a valid token - create content via API first', () => {})
   })
 
-  test('should show validation error when rejecting without feedback', async ({ page }) => {
+  test('should show validation error when rejecting without feedback', async () => {
     test.skip('This test requires a valid token - create content via API first', () => {})
   })
 })

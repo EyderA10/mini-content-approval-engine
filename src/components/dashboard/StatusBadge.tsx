@@ -1,30 +1,25 @@
 import { Badge } from "@/components/ui/badge"
+import { ContentStatus } from '@/lib/enums'
 
 type StatusBadgeProps = {
-  status: 'pending' | 'approved' | 'rejected'
+  status: ContentStatus
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
   const variant = {
-    pending: "secondary" as const,
-    approved: "default" as const,
-    rejected: "destructive" as const,
-  }
-
-  const labels = {
-    pending: 'Pending',
-    approved: 'Approved',
-    rejected: 'Rejected',
+    [ContentStatus.Pending]: 'secondary' as const,
+    [ContentStatus.Approved]: 'default' as const,
+    [ContentStatus.Rejected]: 'destructive' as const,
   }
 
   return (
     <Badge variant={variant[status]}>
       <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-        status === 'pending' ? 'bg-warning' : 
-        status === 'approved' ? 'bg-success' : 
+        status === ContentStatus.Pending ? 'bg-warning' : 
+        status === ContentStatus.Approved ? 'bg-success' : 
         'bg-error'
       }`} />
-      {labels[status]}
+      {status.charAt(0).toUpperCase() + status.slice(1)}
     </Badge>
   )
 }

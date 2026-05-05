@@ -2,9 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
-
-/** Types of database changes detected by Supabase Realtime. */
-export type RealtimeEventType = 'INSERT' | 'UPDATE' | 'DELETE'
+import { RealtimeEventType, SubscriptionStatus, DBSchema } from '@/lib/enums'
 
 /**
  * Payload from a Supabase Realtime change event.
@@ -15,9 +13,6 @@ export type RealtimeEvent<T> = {
   new?: T
   old?: T
 }
-
-/** Subscription connection status from Supabase Realtime. */
-export type SubscriptionStatus = 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED'
 
 type UseRealtimeWithPollingReturn = {
   /** Call to unsubscribe from realtime channel. */
@@ -43,7 +38,7 @@ export function useRealtimeWithPolling<T>({
   channelName?: string
   onEvent: (event: RealtimeEvent<T>) => void
 }): UseRealtimeWithPollingReturn {
-  const [status, setStatus] = useState<SubscriptionStatus>('CLOSED')
+  const [status, setStatus] = useState(SubscriptionStatus.Closed)
   const isActiveRef = useRef(true)
   const onEventRef = useRef(onEvent)
 
@@ -59,7 +54,7 @@ export function useRealtimeWithPolling<T>({
       .channel(channelName || `realtime-${table}-${Date.now()}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table, filter },
+        { event: '*', schema: DBSchema.Public, table, filter },
         (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           if (!isActiveRef.current) return
 
@@ -74,16 +69,16 @@ export function useRealtimeWithPolling<T>({
       .subscribe((status: string) => {
         if (!isActiveRef.current) return
 
-        if (status === 'SUBSCRIBED') {
-          setStatus('SUBSCRIBED')
-        } else if (status === 'CHANNEL_ERROR') {
+        if (status === SubscriptionStatus.Subscribed) {
+          setStatus(SubscriptionStatus.Subscribed)
+        } else if (status === SubscriptionStatus.ChannelError) {
           logger.error(`[Realtime] Channel error for table: ${table}`)
-          setStatus('CHANNEL_ERROR')
-        } else if (status === 'TIMED_OUT') {
+          setStatus(SubscriptionStatus.ChannelError)
+        } else if (status === SubscriptionStatus.TimedOut) {
           logger.warn('[Realtime] Subscription timed out for table:', table)
-          setStatus('TIMED_OUT')
-        } else if (status === 'CLOSED') {
-          setStatus('CLOSED')
+          setStatus(SubscriptionStatus.TimedOut)
+        } else if (status === SubscriptionStatus.Closed) {
+          setStatus(SubscriptionStatus.Closed)
         }
       })
 
@@ -100,6 +95,6 @@ export function useRealtimeWithPolling<T>({
   return {
     unsubscribe,
     status,
-    isSubscribed: status === 'SUBSCRIBED',
+    isSubscribed: status === SubscriptionStatus.Subscribed,
   }
 }
