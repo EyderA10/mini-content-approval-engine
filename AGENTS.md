@@ -2,187 +2,86 @@
 
 ## Project Context
 
-Next.js 15 micro-feature for content agencies to get client approvals on videos via shareable URL.
+Next.js 16 micro-feature for content agencies to get client approvals on videos via shareable URL.
 
 ## Tech Stack
 
-- **Next.js 15** with App Router
+- **Next.js 16.2.4** with App Router
+- **React 19**, **TypeScript 5**, **Tailwind v4**
+- **Zod v4**
 - **Supabase** PostgreSQL + Realtime
-- **Tailwind CSS** + **shadcn/ui**
-- **Zod** + React Hook Form
+- **shadcn/ui** + **@base-ui/react**
+- **React Hook Form** + **sonner** (toasts) + **axios**
 
 ## Key Commands
 
 ```bash
-# Initialize Next.js project (fresh start)
-npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm
-
-# Run dev server
-npm run dev
-
-# Run tests
-npm run test:unit        # Unit tests (121 tests)
-npm run test:e2e        # E2E tests (requires playwright deps)
-npm run test            # All tests
+npm run dev              # Dev server on :3000
+npm run build            # Production build
+npm run lint             # ESLint (flat config)
+npm run test:unit        # Vitest — 121 tests across 5 files
+npm run test:unit:watch  # Vitest watch mode
+npm run test:e2e         # Playwright (auto-starts dev server)
+npm run test:e2e:ui      # Playwright UI mode
+npm run test             # All tests (unit then e2e)
 ```
 
 ## Environment Variables
 
-Create `.env.local` with Supabase credentials. See `.env.example` for template.
+Create `.env.local` from `.env.example`:
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Anon key (browser + server reads)
+- `SUPABASE_SERVICE_ROLE_KEY` — Service role (server writes only, never expose to browser)
 
-## Pages
+## Database
 
-- `/` - Agency Dashboard
-- `/approve/[token]` - Client approval view
+Single table: `content_pieces` (schema in `supabase/schema.sql`). Run SQL in Supabase SQL Editor. Realtime enabled with `REPLICA IDENTITY FULL`. No RLS by default (anon SELECT policy exists).
 
-## Project Structure
+Status flow: `pending` → `approved` | `rejected` (atomic via `WHERE status = 'pending'`).
 
-```
-src/
-├── app/
-│   ├── (dashboard)/          # Agency dashboard
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── approve/[token]/      # Client approval view
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   └── api/content/
-│       ├── route.ts          # GET/POST all content
-│       └── [token]/
-│           ├── route.ts      # GET content by token
-│           └── action/
-│               └── route.ts  # POST approve/reject
-├── components/
-│   ├── dashboard/            # Dashboard components
-│   │   ├── ContentForm.tsx
-│   │   ├── ContentList.tsx
-│   │   └── StatusBadge.tsx
-│   ├── client/               # Client approval components
-│   │   ├── ActionPanel.tsx
-│   │   └── VideoPlayer.tsx
-│   └── ui/                   # shadcn/ui components
-├── lib/
-│   ├── validators.ts        # Zod schemas
-│   ├── video.ts              # Video URL utilities
-│   ├── rate-limit.ts        # Rate limiting middleware
-│   ├── error.ts              # Error utilities
-│   ├── logger.ts            # Conditional logging
-│   ├── constants.ts         # Shared constants
-│   ├── supabase.ts          # Browser client
-│   ├── supabase-server.ts   # Server client
-│   └── supabase-admin.ts    # Admin client (server-only)
-├── hooks/
-│   └── useRealtimeWithPolling.ts  # Realtime + polling hook
-└── tests/
-    ├── unit/                 # Vitest unit tests
-    └── e2e/                  # Playwright E2E tests
-```
+## Architecture
 
-## Important Notes
+### API Routes
 
-- **COMMIT RESTRICTION**: Only make commits when explicitly authorized by the user. Do NOT push to remote.
-- Always validate video URLs client-side AND server-side with Zod
-- Feedback is REQUIRED only on rejection
-- Client name/email is optional on both actions
-- Use Supabase realtime for auto-updating dashboard
-- Do NOT commit `.env.local` — use `.env.example` template
-- Service role key must never be exposed to browser (guarded in `supabase-admin.ts`)
+| Route | Method | Client | Purpose |
+|---|---|---|---|
+| `/api/content` | GET | `createServerClient()` (anon) | List content with pagination (`?page=&limit=`) |
+| `/api/content` | POST | `createAdminClient()` (service role) | Create content piece |
+| `/api/content/[token]` | GET | `createServerClient()` (anon) | Get single content by share token |
+| `/api/content/[token]/action` | POST | `createAdminClient()` (service role) | Approve/reject (atomic conditional update) |
 
-## Security Notes
+### Supabase Clients (4 files)
 
-- Rate limiting enabled on all API routes
-- CSRF protection on action endpoints
-- Audit logging for approval/rejection actions
-- Input validation with max length constraints
+- `lib/supabase-client.ts` — Memoized browser client (`createBrowserClient` from `@supabase/ssr`). The canonical source.
+- `lib/supabase.ts` — Re-export of `supabase-client.ts`. Import this for browser components.
+- `lib/supabase-server.ts` — Server-side anon-key client for read-only API routes.
+- `lib/supabase-admin.ts` — Service-role admin client for writes. **Has browser guard** (`typeof window` check — throws if used client-side).
 
-## Available Agents
+### Pages
 
-### @frontend-dev
+- `/` — Agency dashboard (lists content, form to add new)
+- `/approve/[token]` — Client approval view (video player + approve/reject panel)
 
-Redesign and modernize the UI/UX using the frontend-design skill.
+## Important Conventions
 
-```bash
-# Invoke via @ mention
-@frontend-dev redesign the dashboard
-```
+- **Validation**: Zod schemas in `lib/validators.ts`. Video URLs validated client-side AND server-side against YouTube/Vimeo/MP4 patterns.
+- **Feedback**: Required only on rejection. Client name/email optional.
+- **Rate limiting**: In-memory Map-based (`lib/rate-limit.ts`). CREATE: 10/min, READ: 60/min, ACTION: 30/min. **Won't work across multiple instances**.
+- **Audit logging**: All actions logged in `lib/audit.ts`, including failed validations. Emails masked. Dev-only console output.
+- **Realtime**: `useRealtimeWithPolling` hook subscribes to `content_pieces` table changes. No polling fallback (realtime-only).
+- **Atomic updates**: Action endpoint prevents double-review via `WHERE status = 'pending'`. Returns 409 if already reviewed.
+- **Do NOT commit `.env.local`** — `.env.example` is the template.
 
-Location: `.opencode/agents/frontend-dev.md`
+## Testing
 
-### @frontend-refactor
+- **Unit tests**: `tests/unit/` — validators, video utils, rate-limiter, error utils, `cn()` utility. Setup in `tests/unit/setup.ts`.
+- **E2E tests**: `tests/e2e/` — dashboard flow, approval flow. Auto-start dev server via Playwright `webServer` config. E2E creates real DB content.
+- **Test data**: `@faker-js/faker` for realistic data generation.
 
-Review and refactor code for quality, best practices, and performance.
+## Security
 
-```bash
-# Invoke via @ mention
-@frontend-refactor refactor dashboard
-```
-
-Location: `.opencode/agents/frontend-refactor.md`
-
-### @frontend-doc
-
-Add concise JSDoc documentation to code.
-
-```bash
-# Invoke via @ mention
-@frontend-doc add docs
-```
-
-Location: `.opencode/agents/frontend-doc.md`
-
-### @frontend-qa-tester
-
-Create and run unit and e2e tests.
-
-```bash
-# Invoke via @ mention
-@frontend-qa-tester run tests
-```
-
-Location: `.opencode/agents/frontend-qa-tester.md`
-
-### @security
-
-Review and improve security posture.
-
-```bash
-# Invoke via @ mention
-@security review
-```
-
-Location: `.opencode/agents/security.md`
-
-## Available Skills
-
-### commit
-
-Commit staged or unstaged changes with an AI-generated commit message.
-
-```bash
-# Invoke via skill
-/commit
-```
-
-Location: `.opencode/skills/commit/SKILL.md`
-
-### context7-mcp
-
-Fetch documentation for libraries, frameworks, and APIs.
-
-```bash
-# Invoke for docs
-How to use Supabase realtime with Next.js?
-```
-
-Location: `/home/eyder_ag/.agents/skills/context7-mcp/SKILL.md`
-
-### frontend-design
-
-Create distinctive, production-grade frontend interfaces.
-
-```bash
-# Invoke for UI work
-@frontend-design create a modern dashboard
-```
-
-Location: `.opencode/skills/frontend-design/SKILL.md`
+- Rate limiting on all API routes with `X-RateLimit-*` headers
+- Service role key guarded by `typeof window` check in `supabase-admin.ts`
+- Input validation with max length constraints (title: 200, feedback: 2000, name/email: 100)
+- Audit log masks emails for privacy
+- MP4 embed URLs validated for http/https protocol only
